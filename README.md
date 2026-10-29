@@ -23,9 +23,12 @@ platform package rather than a plain `android-37`.
 
 ```powershell
 .\gradlew.bat assembleDebug
-.\gradlew.bat installDebug
+adb install -r app\build\outputs\apk\debug\app-debug.apk
 adb shell am start -n com.psyche.app/.MainActivity
 ```
+
+`adb install -r` is preferred over Gradle's `installDebug` task over wireless ADB:
+ddmlib sometimes times out waiting for the device even though the APK installs fine.
 
 ## Unit tests
 
@@ -63,11 +66,19 @@ from the Wireless debugging screen, or run `adb mdns services`.
 Helper script:
 
 ```powershell
-.\dev.ps1 connect 192.168.1.50:41234
-.\dev.ps1 devices
-.\dev.ps1 test
-.\dev.ps1 deploy
-.\dev.ps1 logcat
+.\dev.cmd connect 192.168.1.50:41234
+.\dev.cmd devices
+.\dev.cmd test
+.\dev.cmd deploy
+.\dev.cmd logcat
+```
+
+Use `dev.cmd`, not `dev.ps1`: from `cmd.exe` (or by double-clicking), a `.ps1`
+file is handed to the file association and opens in an editor instead of running.
+If you prefer PowerShell directly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\dev.ps1 deploy
 ```
 
 ## Project structure
