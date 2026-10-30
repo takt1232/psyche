@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:390px;height:844px;overflow:hidden;background:#0B0D10;font-family:'Public Sans',system-ui,sans-serif;color:#FFFFFF}
+  .screen{width:390px;height:844px;position:relative;overflow:hidden;background:#0B0D10}
+  .status{height:36px;padding:0 18px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600}
+  .status-icons{display:flex;gap:6px;align-items:center}
+  .status-icons svg{height:11px;width:auto}
+  .appbar{height:56px;padding:0 18px;display:flex;justify-content:space-between;align-items:center}
+  .brand{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;letter-spacing:.08em}
+  .appbar .month{font-family:'Roboto Mono',monospace;font-size:9px;letter-spacing:.12em;color:#9BA1A8}
+  .main{padding:0 16px}
+  .pass{background:#FFFFFF;color:#0B0D10;border-radius:10px;padding:13px 14px 12px;position:relative;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+  .pass-head{display:flex;justify-content:space-between;font-family:'Roboto Mono',monospace;font-size:8px;font-weight:500;letter-spacing:.1em;color:#5C636B;border-bottom:1px solid #DDE0E3;padding-bottom:7px}
+  .route{display:flex;justify-content:space-between;align-items:baseline;margin-top:9px;font-family:'Roboto Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.08em}
+  .route .wk{color:#5C636B;font-weight:500}
+  .amount-row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:2px}
+  .amount{font-family:'Barlow Condensed',sans-serif;font-size:58px;font-weight:700;line-height:.98;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .amount-side{text-align:right;padding-bottom:5px}
+  .amount-side .left{font-family:'Roboto Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.12em;color:#5C636B}
+  .amount-side .of{font-family:'Roboto Mono',monospace;font-size:8px;color:#5C636B;margin-top:3px}
+  .amount-side .pct{font-family:'Roboto Mono',monospace;font-size:11px;font-weight:700;margin-top:2px}
+  .segments{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #DDE0E3;border-bottom:1px solid #DDE0E3;margin-top:8px}
+  .segment{padding:7px 0 6px;border-right:1px solid #DDE0E3}
+  .segment:last-child{border-right:0}
+  .segment .k{font-family:'Roboto Mono',monospace;font-size:7px;letter-spacing:.1em;color:#5C636B}
+  .segment .v{font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;margin-top:2px}
+  .segment:nth-child(2){padding-left:10px}
+  .segment:nth-child(3){padding-left:10px}
+  .barcode{height:30px;margin-top:9px;background:repeating-linear-gradient(90deg,#0B0D10 0 2px,transparent 2px 4px,#0B0D10 4px 7px,transparent 7px 10px,#0B0D10 10px 11px,transparent 11px 14px);opacity:.92}
+  .code{display:flex;justify-content:space-between;font-family:'Roboto Mono',monospace;font-size:7px;letter-spacing:.12em;color:#5C636B;margin-top:4px}
+  .perf{position:absolute;left:12px;right:12px;bottom:36px;border-top:1px dashed #C9CDD1}
+  .notch{position:absolute;bottom:30px;width:14px;height:14px;border-radius:50%;background:#0B0D10}
+  .notch.l{left:-7px}.notch.r{right:-7px}
+  .board-head{display:flex;justify-content:space-between;align-items:baseline;margin:16px 2px 6px}
+  .board-head h2{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:600;letter-spacing:.12em;margin:0;color:#FFFFFF}
+  .board-head span{font-family:'Roboto Mono',monospace;font-size:8px;color:#7C848C;letter-spacing:.08em}
+  .thead,.brow{display:grid;grid-template-columns:38px 1fr 54px 58px;gap:6px;align-items:center}
+  .thead{font-family:'Roboto Mono',monospace;font-size:7px;letter-spacing:.1em;color:#7C848C;padding:0 2px 5px;border-bottom:1px solid #2A2F35}
+  .thead span:nth-child(3),.thead span:nth-child(4){text-align:right}
+  .brow{min-height:42px;border-bottom:1px solid #20252B;padding:0 2px;font-family:'Roboto Mono',monospace;font-size:9px;font-variant-numeric:tabular-nums}
+  .brow .time{font-size:7px;color:#7C848C}
+  .brow .desc{font-family:'Public Sans',sans-serif;font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brow .amt,.brow .bal{text-align:right}
+  .brow.now{background:#FFD400;color:#0B0D10;border-bottom-color:#FFD400;margin:0 -6px;padding:0 8px}
+  .brow.now .time{color:#0B0D10}
+  .nowtag{display:inline-block;background:#0B0D10;color:#FFD400;font-family:'Roboto Mono',monospace;font-size:6px;font-weight:700;letter-spacing:.08em;padding:2px 4px;margin-left:4px;vertical-align:1px}
+  .note{font-family:'Roboto Mono',monospace;font-size:7px;color:#7C848C;line-height:1.5;margin:9px 2px 0}
+  .nav{position:absolute;left:0;right:0;bottom:0;height:80px;background:#0B0D10;border-top:1px solid #2A2F35;display:grid;grid-template-columns:repeat(4,1fr);padding:8px 10px 10px}
+  .nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:'Roboto Mono',monospace;font-size:7px;letter-spacing:.04em;color:#7C848C}
+  .nav-item.active{color:#FFD400}
+  .nav-item svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .fab{position:absolute;right:18px;bottom:94px;width:56px;height:56px;border-radius:50%;background:#FFD400;color:#0B0D10;display:grid;place-items:center;box-shadow:0 6px 18px rgba(255,212,0,.25)}
+  .fab svg{width:24px;height:24px;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="status">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg viewBox="0 0 18 12" fill="#FFF"><rect x="0" y="7" width="3" height="5" rx=".5"/><rect x="5" y="4" width="3" height="8" rx=".5"/><rect x="10" y="2" width="3" height="10" rx=".5"/><rect x="15" y="0" width="3" height="12" rx=".5"/></svg>
+      <svg viewBox="0 0 16 12" fill="none" stroke="#FFF" stroke-width="1.6"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/><circle cx="8" cy="11" r=".8" fill="#FFF" stroke="none"/></svg>
+      <svg viewBox="0 0 24 12" fill="none" stroke="#FFF" stroke-width="1.4"><rect x="1" y="1" width="20" height="10" rx="2"/><rect x="3" y="3" width="14" height="6" rx="1" fill="#FFF" stroke="none"/><path d="M22 4v4"/></svg>
+    </span>
+  </div>
+  <div class="appbar">
+    <div class="brand">PSYCHE</div>
+    <div class="month">SEPTEMBER · WK 4/5</div>
+  </div>
+  <div class="main">
+    <div class="pass">
+      <div class="pass-head"><span>BUDGET PASS</span><span>SEQ 012</span></div>
+      <div class="route"><span>SEP 2026</span><span class="wk">12 DAYS REMAINING</span></div>
+      <div class="amount-row">
+        <div class="amount">₱8,240</div>
+        <div class="amount-side"><div class="left">LEFT</div><div class="of">OF ₱12,000</div><div class="pct">68.7%</div></div>
+      </div>
+      <div class="segments">
+        <div class="segment"><div class="k">WEEK</div><div class="v">4 / 5</div></div>
+        <div class="segment"><div class="k">DAILY</div><div class="v">₱686</div></div>
+        <div class="segment"><div class="k">STATUS</div><div class="v">ON PLAN</div></div>
+      </div>
+      <div class="barcode"></div>
+      <div class="code"><span>PSYCHE-8240</span><span>NOTIFICATION LOG ON</span></div>
+      <div class="perf"></div>
+      <span class="notch l"></span><span class="notch r"></span>
+    </div>
+    <div class="board-head"><h2>LIVE ACTIVITY</h2><span>UPDATED 9:41</span></div>
+    <div class="thead"><span>TIME</span><span>DESCRIPTION</span><span>AMOUNT</span><span>LEFT</span></div>
+    <div class="brow now"><span class="time">9:41</span><span class="desc">Mobile load<span class="nowtag">NOW</span></span><span class="amt">−405</span><span class="bal">8,240</span></div>
+    <div class="brow"><span class="time">9:12</span><span class="desc">Lunch with Mia</span><span class="amt">−180</span><span class="bal">8,645</span></div>
+    <div class="brow"><span class="time">8:12</span><span class="desc">Jeepney to work</span><span class="amt">−15</span><span class="bal">8,825</span></div>
+    <div class="brow"><span class="time">YEST</span><span class="desc">Groceries</span><span class="amt">−1,240</span><span class="bal">8,960</span></div>
+    <div class="brow"><span class="time">26 SEP</span><span class="desc">Rent share</span><span class="amt">−1,800</span><span class="bal">10,200</span></div>
+    <p class="note">The changed row stays lit until you notice it. Logging from the notification rewrites the pass and moves the row.</p>
+  </div>
+  <div class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+  <nav class="nav">
+    <div class="nav-item active"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8M5 10v10h5v-6h4v6h5V10"/></svg>HOME</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>ACTIVITY</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>BUDGETS</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>ACCOUNTS</div>
+  </nav>
+</div>
+</body>
+</html>

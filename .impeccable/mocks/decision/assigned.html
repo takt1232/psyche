@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:390px;height:844px;overflow:hidden;background:#F4EFE3;font-family:'Public Sans',system-ui,sans-serif;color:#2E2118}
+  .screen{width:390px;height:844px;position:relative;overflow:hidden;background:#F4EFE3}
+  .status{height:36px;padding:0 20px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600}
+  .status-icons{display:flex;gap:6px;align-items:center}
+  .status-icons svg{height:11px;width:auto}
+  .appbar{height:56px;padding:0 20px;display:flex;justify-content:space-between;align-items:center}
+  .brand{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1}
+  .brand span{display:block;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8C7B68;margin-top:3px}
+  .avatar{width:36px;height:36px;border-radius:50%;background:#2E6F63;color:#F4EFE3;display:grid;place-items:center;font-size:13px;font-weight:700}
+  .main{padding:0 20px}
+  .window{background:#2E2118;border-radius:18px;padding:8px;box-shadow:0 8px 24px rgba(46,33,24,.18)}
+  .panes{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;height:144px}
+  .pane{border-radius:3px}
+  .lit{background:linear-gradient(145deg,#FFF9E9 0%,#F2E3BF 55%,#E5D0A4 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)}
+  .dim{background:#241A13;box-shadow:inset 0 0 0 1px #4A3525}
+  .part{background:linear-gradient(to top,#F2E3BF 0 24%,#241A13 24% 100%);box-shadow:inset 0 0 0 1px #4A3525}
+  .sill{padding:14px 8px 6px;display:flex;justify-content:space-between;align-items:flex-end}
+  .amount{font-size:44px;line-height:1;font-weight:600;letter-spacing:-.03em;color:#F8F1DF;font-variant-numeric:tabular-nums}
+  .sub{font-size:12px;font-weight:500;color:#D8C7A9;margin-top:6px}
+  .right{text-align:right}
+  .of{font-size:11px;color:#D8C7A9}
+  .pct{font-size:20px;font-weight:600;color:#E9B44C;margin-top:2px}
+  .days{font-size:11px;color:#D8C7A9;margin-top:2px}
+  .caption{font-size:11px;color:#8C7B68;margin:11px 4px 0;line-height:1.4}
+  .pace{display:flex;justify-content:space-between;align-items:center;padding:13px 2px;border-bottom:1px solid #D8CDBA;font-size:13px;font-weight:600}
+  .pace-left{display:flex;align-items:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#2E6F63}
+  .pace-right{color:#2E6F63}
+  .today{display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 2px}
+  .today h2{font-size:17px;font-weight:700;margin:0;letter-spacing:-.01em}
+  .today a{font-size:12px;font-weight:600;color:#2E6F63;text-decoration:none}
+  .row{display:flex;align-items:center;gap:12px;height:64px;border-bottom:1px solid #D8CDBA}
+  .icon{width:36px;height:36px;border-radius:10px;background:#E7DCC8;display:grid;place-items:center;flex:none}
+  .icon svg{width:19px;height:19px;stroke:#2E2118;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .meta{flex:1;min-width:0}
+  .name{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .detail{display:block;font-size:11px;color:#8C7B68;margin-top:2px}
+  .amt{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+  .nav{position:absolute;left:0;right:0;bottom:0;height:80px;background:#F4EFE3;border-top:1px solid #D8CDBA;display:grid;grid-template-columns:repeat(4,1fr);padding:8px 10px 10px}
+  .nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:9px;font-weight:600;color:#8C7B68}
+  .nav-item.active{color:#2E6F63}
+  .nav-item svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .fab{position:absolute;right:20px;bottom:94px;width:56px;height:56px;border-radius:50%;background:#2E6F63;color:#F4EFE3;display:grid;place-items:center;box-shadow:0 6px 16px rgba(46,111,99,.3)}
+  .fab svg{width:24px;height:24px;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="status">
+    <span>9:41</span>
+    <span class="status-icons">
+      <svg viewBox="0 0 18 12" fill="#2E2118"><rect x="0" y="7" width="3" height="5" rx=".5"/><rect x="5" y="4" width="3" height="8" rx=".5"/><rect x="10" y="2" width="3" height="10" rx=".5"/><rect x="15" y="0" width="3" height="12" rx=".5"/></svg>
+      <svg viewBox="0 0 16 12" fill="none" stroke="#2E2118" stroke-width="1.6"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/><circle cx="8" cy="11" r=".8" fill="#2E2118" stroke="none"/></svg>
+      <svg viewBox="0 0 24 12" fill="none" stroke="#2E2118" stroke-width="1.4"><rect x="1" y="1" width="20" height="10" rx="2"/><rect x="3" y="3" width="14" height="6" rx="1" fill="#2E2118" stroke="none"/><path d="M22 4v4"/></svg>
+    </span>
+  </div>
+  <div class="appbar">
+    <div class="brand">Psyche<span>Finance</span></div>
+    <div class="avatar">A</div>
+  </div>
+  <div class="main">
+    <div class="window">
+      <div class="panes">
+        <div class="pane lit"></div><div class="pane lit"></div><div class="pane lit"></div><div class="pane lit"></div><div class="pane lit"></div><div class="pane lit"></div>
+        <div class="pane lit"></div><div class="pane lit"></div><div class="pane part"></div><div class="pane dim"></div><div class="pane dim"></div><div class="pane dim"></div>
+      </div>
+      <div class="sill">
+        <div>
+          <div class="amount">₱8,240</div>
+          <div class="sub">left to spend</div>
+        </div>
+        <div class="right">
+          <div class="of">of ₱12,000</div>
+          <div class="pct">68.7%</div>
+          <div class="days">12 days</div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">September, week 4 of 5. Eight panes and part of a ninth are still lit.</p>
+    <div class="pace">
+      <span class="pace-left"><span class="dot"></span>12 days left</span>
+      <span class="pace-right">₱686 / day</span>
+    </div>
+    <div class="today"><h2>Today</h2><a href="#">See all</a></div>
+    <div class="rows">
+      <div class="row">
+        <span class="icon"><svg viewBox="0 0 24 24"><path d="M7 3v7a2 2 0 0 0 4 0V3M9 3v18M17 3c-2 2-2 5 0 7v11"/></svg></span>
+        <span class="meta"><span class="name">Lunch</span><span class="detail">Cash · 12:40</span></span>
+        <span class="amt">−₱180</span>
+      </div>
+      <div class="row">
+        <span class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M4 10h16M8 17v2M16 17v2M7 8h.01M10 8h.01"/></svg></span>
+        <span class="meta"><span class="name">Jeepney</span><span class="detail">Cash · 08:12</span></span>
+        <span class="amt">−₱15</span>
+      </div>
+      <div class="row">
+        <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 5h2l2.4 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></span>
+        <span class="meta"><span class="name">Groceries</span><span class="detail">Debit · Yesterday</span></span>
+        <span class="amt">−₱1,240</span>
+      </div>
+      <div class="row">
+        <span class="icon"><svg viewBox="0 0 24 24"><path d="M5 8h12v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8zM8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M4 12h14"/></svg></span>
+        <span class="meta"><span class="name">Coffee</span><span class="detail">Cash · Yesterday</span></span>
+        <span class="amt">−₱120</span>
+      </div>
+    </div>
+  </div>
+  <div class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+  <nav class="nav">
+    <div class="nav-item active"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8M5 10v10h5v-6h4v6h5V10"/></svg>Home</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Activity</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Budgets</div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>Accounts</div>
+  </nav>
+</div>
+</body>
+</html>

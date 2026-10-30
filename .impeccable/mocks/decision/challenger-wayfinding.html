@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;width:390px;height:844px;overflow:hidden;background:#FFFFFF;font-family:'Public Sans',system-ui,sans-serif;color:#080808}
+  .screen{width:390px;height:844px;position:relative;overflow:hidden;background:#FFFFFF}
+  .top{background:#FFCC00;position:relative}
+  .status{height:36px;padding:0 20px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700}
+  .status-icons{display:flex;gap:6px;align-items:center}
+  .status-icons svg{height:11px;width:auto}
+  .appbar{height:56px;padding:0 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #080808}
+  .brand{font-size:22px;font-weight:800;letter-spacing:-.03em}
+  .appbar-right{display:flex;align-items:center;gap:14px}
+  .month{font-size:9px;font-weight:700;letter-spacing:.12em}
+  .menu{width:24px;height:18px;display:flex;flex-direction:column;justify-content:space-between}
+  .menu i{height:2px;background:#080808}
+  .hero{display:flex;gap:16px;align-items:flex-start;padding:20px 20px 22px}
+  .arrowbox{width:52px;height:52px;background:#080808;display:grid;place-items:center;flex:none;margin-top:7px}
+  .arrowbox svg{width:28px;height:28px;stroke:#FFFFFF;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .hero-copy{flex:1}
+  .amount{font-size:60px;font-weight:800;letter-spacing:-.05em;line-height:.95;font-variant-numeric:tabular-nums}
+  .label{font-size:15px;font-weight:600;margin-top:4px}
+  .pace{font-size:12px;font-weight:700;margin-top:9px;padding-top:9px;border-top:1px solid rgba(8,8,8,.35);display:flex;justify-content:space-between;max-width:245px}
+  .panel{background:#FFFFFF;border-radius:16px 16px 0 0;margin-top:-2px;min-height:472px;padding:20px 20px 0;position:relative;z-index:1}
+  .section-head{display:flex;justify-content:space-between;align-items:baseline;font-size:9px;font-weight:800;letter-spacing:.14em;margin-bottom:6px}
+  .section-head span:last-child{letter-spacing:.06em;color:#5C5C5C}
+  .cat{display:grid;grid-template-columns:42px 1fr 66px;gap:12px;align-items:center;min-height:72px;border-bottom:1px solid #080808}
+  .pict{width:42px;height:42px;background:#080808;display:grid;place-items:center}
+  .pict svg{width:22px;height:22px;stroke:#FFFFFF;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .cat-name{font-size:15px;font-weight:700;line-height:1.1}
+  .cat-sub{font-size:10px;font-weight:500;color:#5C5C5C;margin-top:2px}
+  .cat-bar{height:4px;background:#E6E6E6;margin-top:7px;position:relative;max-width:180px}
+  .cat-bar i{position:absolute;inset:0 auto 0 0;background:#FFCC00}
+  .cat-right{text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:6px}
+  .cat-right .val{font-size:12px;font-weight:700;white-space:nowrap}
+  .cat-right svg{width:16px;height:16px;stroke:#080808;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .recent-head{font-size:9px;font-weight:800;letter-spacing:.14em;margin:18px 0 4px}
+  .recent-row{display:flex;justify-content:space-between;align-items:center;min-height:44px;border-bottom:1px solid #E6E6E6;font-size:12px;font-weight:600}
+  .recent-row .meta{font-size:9px;font-weight:500;color:#5C5C5C;margin-top:1px}
+  .recent-row .amt{font-weight:700;font-variant-numeric:tabular-nums}
+  .recent-row svg{width:15px;height:15px;stroke:#080808;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;margin-left:8px}
+  .nav{position:absolute;left:0;right:0;bottom:0;height:80px;background:#FFCC00;border-top:1px solid #080808;display:grid;grid-template-columns:repeat(4,1fr);padding:8px 10px 10px;z-index:2}
+  .nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:8px;font-weight:800;letter-spacing:.04em}
+  .nav-item.active .iconbox{background:#080808}
+  .nav-item.active .iconbox svg{stroke:#FFFFFF}
+  .iconbox{width:30px;height:24px;display:grid;place-items:center}
+  .nav-item svg{width:19px;height:19px;stroke:#080808;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .fab{position:absolute;right:18px;bottom:94px;width:56px;height:56px;border-radius:50%;background:#080808;color:#FFFFFF;display:grid;place-items:center;z-index:3}
+  .fab svg{width:24px;height:24px;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="top">
+    <div class="status">
+      <span>9:41</span>
+      <span class="status-icons">
+        <svg viewBox="0 0 18 12" fill="#080808"><rect x="0" y="7" width="3" height="5" rx=".5"/><rect x="5" y="4" width="3" height="8" rx=".5"/><rect x="10" y="2" width="3" height="10" rx=".5"/><rect x="15" y="0" width="3" height="12" rx=".5"/></svg>
+        <svg viewBox="0 0 16 12" fill="none" stroke="#080808" stroke-width="1.6"><path d="M1 4.5a10 10 0 0 1 14 0M3.5 7a6.5 6.5 0 0 1 9 0M6 9.5a3 3 0 0 1 4 0"/><circle cx="8" cy="11" r=".8" fill="#080808" stroke="none"/></svg>
+        <svg viewBox="0 0 24 12" fill="none" stroke="#080808" stroke-width="1.4"><rect x="1" y="1" width="20" height="10" rx="2"/><rect x="3" y="3" width="14" height="6" rx="1" fill="#080808" stroke="none"/><path d="M22 4v4"/></svg>
+      </span>
+    </div>
+    <div class="appbar">
+      <div class="brand">PSYCHE</div>
+      <div class="appbar-right"><span class="month">SEPTEMBER</span><span class="menu"><i></i><i></i><i></i></span></div>
+    </div>
+    <div class="hero">
+      <div class="arrowbox"><svg viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></svg></div>
+      <div class="hero-copy">
+        <div class="amount">₱8,240</div>
+        <div class="label">left to spend</div>
+        <div class="pace"><span>12 days left</span><span>₱686 a day</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="section-head"><span>WHERE IT'S GOING</span><span>TOP 3</span></div>
+    <div class="cat">
+      <span class="pict"><svg viewBox="0 0 24 24"><path d="M7 3v7a2 2 0 0 0 4 0V3M9 3v18M17 3c-2 2-2 5 0 7v11"/></svg></span>
+      <div><div class="cat-name">Food</div><div class="cat-sub">₱3,200 left of ₱4,000</div><div class="cat-bar"><i style="width:80%"></i></div></div>
+      <div class="cat-right"><span class="val">80%</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+    <div class="cat">
+      <span class="pict"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M4 10h16M8 17v2M16 17v2M7 8h.01M10 8h.01"/></svg></span>
+      <div><div class="cat-name">Transport</div><div class="cat-sub">₱1,450 left of ₱1,800</div><div class="cat-bar"><i style="width:81%"></i></div></div>
+      <div class="cat-right"><span class="val">81%</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+    <div class="cat">
+      <span class="pict"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6"/></svg></span>
+      <div><div class="cat-name">Bills</div><div class="cat-sub">₱2,100 left of ₱2,500</div><div class="cat-bar"><i style="width:84%"></i></div></div>
+      <div class="cat-right"><span class="val">84%</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+    </div>
+    <div class="recent-head">RECENT</div>
+    <div class="recent-row"><div><div>Lunch with Mia</div><div class="meta">Today · Cash</div></div><div style="display:flex;align-items:center"><span class="amt">−₱180</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div></div>
+    <div class="recent-row"><div><div>Jeepney to work</div><div class="meta">Today · Cash</div></div><div style="display:flex;align-items:center"><span class="amt">−₱15</span><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div></div>
+  </div>
+  <div class="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+  <nav class="nav">
+    <div class="nav-item active"><span class="iconbox"><svg viewBox="0 0 24 24"><path d="M3 11 12 3l9 8M5 10v10h5v-6h4v6h5V10"/></svg></span>HOME</div>
+    <div class="nav-item"><span class="iconbox"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></span>ACTIVITY</div>
+    <div class="nav-item"><span class="iconbox"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg></span>BUDGETS</div>
+    <div class="nav-item"><span class="iconbox"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg></span>ACCOUNTS</div>
+  </nav>
+</div>
+</body>
+</html>

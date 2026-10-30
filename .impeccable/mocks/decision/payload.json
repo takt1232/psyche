@@ -1,0 +1,173 @@
+{
+  "title": "Choose the visual world",
+  "question": "The roll assigned Capiz Light. Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "kind": "assigned",
+      "label": "Capiz Light",
+      "kicker": "THE ROLL",
+      "lineage": "capiz shell windows in bahay na bato",
+      "thesis": "Remaining budget as daylight through a capiz window.",
+      "palette": ["#F4EFE3", "#2E2118", "#2E6F63", "#B08D57", "#1F3A5F", "#E9B44C"],
+      "materials": ["capiz shell", "dark hardwood", "brass"],
+      "viewport": "A standard Android finance shell with the remaining budget held in a lit capiz grid.",
+      "risk": "Decorative if the lit cells stop encoding exact budget proportions.",
+      "raised": [
+        {
+          "from": "challenger-ikeda",
+          "raise": "Data rigor: every figure sits in a fixed tabular column, and the lit grid is backed by exact pesos and cents."
+        },
+        {
+          "from": "challenger-video",
+          "raise": "Capture focus: the notification quick-add opens one full-screen amount pad with nothing else competing."
+        },
+        {
+          "from": "challenger-lexicon",
+          "raise": "Orientation: the period and week are named in the ledger caption, so the headline number has a time frame."
+        }
+      ],
+      "html": ".impeccable/mocks/decision/assigned.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "model-pick",
+      "kind": "pick",
+      "label": "Passbook Ledger",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "bank passbooks and ATM receipts",
+      "thesis": "The remaining budget is the last line of a machine-printed ledger.",
+      "palette": ["#F3EFE3", "#171512", "#5B3A8E", "#D0412F", "#B7D6CF"],
+      "materials": ["security paper", "dot-matrix ink", "guilloche"],
+      "viewport": "A standard finance shell where the latest balance line sits above the ledger that produced it.",
+      "risk": "The most familiar finance pattern here; its trust is real, but it can read like a bank app rather than a personal life hub.",
+      "html": ".impeccable/mocks/decision/model-pick.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "challenger-crouwel",
+      "kind": "challenger",
+      "catalogId": "crouwel-grid-specimen",
+      "label": "Constructed Grid",
+      "verdict": "competitive",
+      "lineage": "Wim Crouwel gridded type specimens",
+      "thesis": "A finance screen built on a visible construction grid, where every number snaps to a cell.",
+      "palette": ["#FFFFFF", "#0057FF", "#111111", "#E6EBF2", "#F5F7FA"],
+      "materials": ["visible grid", "constructed letterforms", "cool white"],
+      "viewport": "A standard Android shell whose budget meter and transaction rows share one exposed grid.",
+      "case": "Holds product clarity: the grid makes hierarchy and alignment exact; loses audience identification because the Dutch specimen is not the owner's money world.",
+      "risk": "The grid can become a poster; controls must stay standard Android.",
+      "hero": "https://impeccable.style/worlds/cards/crouwel-grid-specimen-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/crouwel-grid-specimen.webp",
+      "html": ".impeccable/mocks/decision/challenger-crouwel.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "challenger-boarding-pass",
+      "kind": "challenger",
+      "catalogId": "vernacular-ephemera-boarding-pass-and-gate-board",
+      "label": "Budget Pass",
+      "verdict": "competitive",
+      "lineage": "boarding passes and live gate boards",
+      "thesis": "A segmented budget pass above a live board that keeps changed rows lit until noticed.",
+      "palette": ["#0B0D10", "#1C2127", "#6B7178", "#E6E8EB", "#FFFFFF", "#FFD400"],
+      "materials": ["thermal pass", "matte panels", "mono data"],
+      "viewport": "A standard finance shell with a budget pass at top and a ranked activity board below.",
+      "case": "Holds product clarity: summary and change states are immediate; loses audience identification because travel documents are not the owner's money world.",
+      "risk": "The travel metaphor can feel like a costume; the board must not outrank the budget.",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-boarding-pass-and-gate-board-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/vernacular-ephemera-boarding-pass-and-gate-board.webp",
+      "html": ".impeccable/mocks/decision/challenger-boarding-pass.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "challenger-wayfinding",
+      "kind": "challenger",
+      "catalogId": "wayfinding-cartography-signage-terminal-yellow-wayfinding",
+      "label": "Terminal Yellow",
+      "verdict": "competitive",
+      "lineage": "international airport sign systems",
+      "thesis": "The remaining budget stated as one next decision on a saturated yellow band.",
+      "palette": ["#FFCC00", "#080808", "#1A1A1A", "#E6E6E6", "#FFFFFF"],
+      "materials": ["enamel panels", "humanist sans", "pictograms"],
+      "viewport": "A standard finance shell with a yellow decision band and category rows that read like gates.",
+      "case": "Holds product clarity: one decision per band is instantly legible; loses audience identification because an airport is not the owner's money world.",
+      "risk": "Reads as a transit app if the money hierarchy weakens.",
+      "hero": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-terminal-yellow-wayfinding-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/wayfinding-cartography-signage-terminal-yellow-wayfinding.webp",
+      "html": ".impeccable/mocks/decision/challenger-wayfinding.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "challenger-ikeda",
+      "kind": "challenger",
+      "catalogId": "ikeda-datamatics",
+      "label": "Datamatics Field",
+      "verdict": "declined",
+      "lineage": "Ikeda datamatics",
+      "thesis": "A pure black-and-white data field where the budget is a barcode that depletes.",
+      "palette": ["#000000", "#FFFFFF"],
+      "materials": ["barcode fields", "sine lattices", "monospace"],
+      "viewport": "A full-field data wall with a monospace budget column and a burn-rate curve.",
+      "case": "Fuses poorly: the owner does not identify with algorithmic art, and the strobing black-and-white field fights daily money reading.",
+      "kept": "Tabular data rigor: the budget and every transaction sit in exact, fixed columns.",
+      "risk": "Unreadable as a daily tool; the inversion is hostile to state colours.",
+      "hero": "https://impeccable.style/worlds/cards/ikeda-datamatics-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/ikeda-datamatics.webp"
+    },
+    {
+      "id": "challenger-video",
+      "kind": "challenger",
+      "catalogId": "pop-culture-shelf-vertical-video-feed-surface",
+      "label": "One-Tap Feed",
+      "verdict": "declined",
+      "lineage": "full-bleed vertical video feeds",
+      "thesis": "One transaction owns the screen; a right rail carries the actions.",
+      "palette": ["#000000", "#FFFFFF", "#111111"],
+      "materials": ["full-bleed media", "glyph rail", "snap paging"],
+      "viewport": "A full-screen transaction card with a right action rail and the next one a snap away.",
+      "case": "Fuses poorly: it hides the month's budget picture and turns a ledger into a feed.",
+      "kept": "Capture focus: one full-screen amount pad, nothing else competing.",
+      "risk": "Consumption behaviour, not money control.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-vertical-video-feed-surface-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/pop-culture-shelf-vertical-video-feed-surface.webp"
+    },
+    {
+      "id": "challenger-lexicon",
+      "kind": "challenger",
+      "catalogId": "rw-lexicon-shoulder-and-plate",
+      "label": "Lexicon Page",
+      "verdict": "declined",
+      "lineage": "nineteenth-century lexicon pages",
+      "thesis": "The month as a lexicon, entries ranked by apparatus and guide words at the head.",
+      "palette": ["#EFE5D0", "#1F1C18", "#A33327", "#1E6B4F", "#1D3F8F", "#E3B505"],
+      "materials": ["engraving", "rag paper", "colour plates"],
+      "viewport": "A black-text ledger column with a shoulder index and one chromolithographed budget plate.",
+      "case": "Fuses poorly: the reading model is wrong for scanning money daily, and the cream-and-serif world is the category's calm default.",
+      "kept": "Orientation: guide words name the period and position at the top of the page.",
+      "risk": "Beautiful to read, slow to use.",
+      "hero": "https://impeccable.style/worlds/cards/rw-lexicon-shoulder-and-plate-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/rw-lexicon-shoulder-and-plate.webp"
+    }
+  ],
+  "reroll": {
+    "registers": ["safer", "bolder"]
+  },
+  "buildPath": {
+    "value": "code"
+  },
+  "canon": true,
+  "canonCard": {
+    "id": "canon",
+    "kind": "canon",
+    "label": "The category standard",
+    "thesis": "A clean Material 3 finance dashboard: remaining budget, category progress, recent transactions, bottom navigation, FAB.",
+    "palette": ["#FFFFFF", "#111827", "#2563EB", "#16A34A", "#DC2626"],
+    "materials": ["Material 3 surfaces", "standard controls"],
+    "viewport": "The arrangement a finance app user expects, at full craft.",
+    "risk": "Indistinguishable from the competition by design.",
+    "html": ".impeccable/mocks/decision/canon.html",
+    "htmlFrame": "390x844"
+  },
+  "steer": true
+}

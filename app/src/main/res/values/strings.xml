@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Psyche</string>
-    <string name="home_subtitle">A quiet place for your thoughts.</string>
-    <string name="entry_hint">What\'s on your mind?</string>
-    <string name="add_entry">Add reflection</string>
-    <string name="empty_state">No reflections yet. Start with one honest sentence.</string>
+    <string name="notification_channel_name">Budget pass</string>
+    <string name="notification_channel_description">A quiet, ongoing shortcut for logging an expense.</string>
+    <string name="notification_title">Psyche budget pass</string>
+    <string name="notification_action">Log expense</string>
 </resources>

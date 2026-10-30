@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-30T13:10:29+08:00",
+  "title": "Design System: Psyche Finance Pass",
+  "extensions": {
+    "colorMeta": {
+      "alert": {
+        "role": "primary",
+        "displayName": "Alert Amber",
+        "canonical": "#FFD400",
+        "tonalRamp": ["#3B2F00", "#5A4900", "#7A6300", "#9C8300", "#C4A500", "#FFD400", "#FFE45C", "#FFF3C4"]
+      },
+      "alert-ink": {
+        "role": "primary",
+        "displayName": "Stamped Amber Ink",
+        "canonical": "#7A5B00",
+        "tonalRamp": ["#2B1F00", "#3B2B00", "#4E3900", "#604700", "#715500", "#7A5B00", "#8F6B00", "#A87C0A"]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Signal Ink",
+        "canonical": "#0B0D10",
+        "tonalRamp": ["#0B0D10", "#10141A", "#151A20", "#1B2027", "#21272F", "#2A3038", "#4A5058", "#6B7178"]
+      },
+      "night-ground": {
+        "role": "neutral",
+        "displayName": "Night Ground",
+        "canonical": "#0B0D10",
+        "tonalRamp": ["#0B0D10", "#10141A", "#151A20", "#1B2027", "#21272F", "#2A3038", "#4A5058", "#6B7178"]
+      },
+      "night-row": {
+        "role": "neutral",
+        "displayName": "Night Board Row",
+        "canonical": "#15191E",
+        "tonalRamp": ["#15191E", "#1A1F25", "#20262C", "#262C33", "#2C333A", "#343B43", "#4A5158", "#6B7178"]
+      },
+      "night-line": {
+        "role": "neutral",
+        "displayName": "Night Hairline",
+        "canonical": "#2A2F35",
+        "tonalRamp": ["#2A2F35", "#343A41", "#3E444B", "#494F56", "#555B62", "#62686F", "#6F767D", "#7C848C"]
+      },
+      "pass-paper": {
+        "role": "neutral",
+        "displayName": "Pass Paper",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["#6B7178", "#8A9199", "#A4A9AF", "#C4C8CD", "#DDE0E3", "#E6E8EB", "#F7F8F9", "#FFFFFF"]
+      },
+      "pass-muted": {
+        "role": "neutral",
+        "displayName": "Pass Muted",
+        "canonical": "#5C636B",
+        "tonalRamp": ["#30363C", "#3B4249", "#464D54", "#51585F", "#5C636B", "#757D85", "#90979F", "#B5BBC2"]
+      },
+      "day-ground": {
+        "role": "neutral",
+        "displayName": "Day Terminal Ground",
+        "canonical": "#E6E8EB",
+        "tonalRamp": ["#3F464D", "#4F565E", "#646B73", "#7D848C", "#9AA1A8", "#C4C8CD", "#E6E8EB", "#F7F8F9"]
+      },
+      "day-panel": {
+        "role": "neutral",
+        "displayName": "Day Panel",
+        "canonical": "#F4F5F6",
+        "tonalRamp": ["#4A5158", "#5C636B", "#747C84", "#90979F", "#B5BBC2", "#D5D8DC", "#F4F5F6", "#FFFFFF"]
+      },
+      "danger-night": {
+        "role": "secondary",
+        "displayName": "Night Over-Budget",
+        "canonical": "#FFB4AB",
+        "tonalRamp": ["#4A0F0C", "#6B1612", "#8C1D18", "#B3261E", "#D94840", "#FFB4AB", "#FFDAD6", "#FFF0EE"]
+      },
+      "danger-day": {
+        "role": "secondary",
+        "displayName": "Day Over-Budget",
+        "canonical": "#B3261E",
+        "tonalRamp": ["#4A0F0C", "#6B1612", "#8C1D18", "#B3261E", "#D94840", "#FFB4AB", "#FFDAD6", "#FFF0EE"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Screen and receipt totals outside the pass." },
+      "headline": { "displayName": "Headline", "purpose": "Screen and sheet titles in Public Sans." },
+      "title": { "displayName": "Title", "purpose": "Row names, section headings, empty states." },
+      "body": { "displayName": "Body", "purpose": "Settings copy, descriptions, field text." },
+      "label": { "displayName": "Mono Label", "purpose": "Button text, table headers, stamps, status labels." },
+      "pass-amount": { "displayName": "Pass Amount", "purpose": "The single largest figure: remaining or over by." },
+      "brand": { "displayName": "Brand", "purpose": "The PSYCHE wordmark only." },
+      "mono-micro": { "displayName": "Mono Micro", "purpose": "Ticket metadata, sequence, barcode caption, table micro-labels." }
+    },
+    "shadows": [
+      { "name": "pass-night", "value": "0 14px 34px rgba(0,0,0,0.38)", "purpose": "The white pass lifted over the night board." },
+      { "name": "pass-day", "value": "0 2px 8px rgba(11,13,16,0.08)", "purpose": "A faint paper lift on the daylight ground." },
+      { "name": "fab-lift", "value": "0 6px 16px rgba(0,0,0,0.24)", "purpose": "The single amber primary action above the navigation bar." }
+    ],
+    "motion": [
+      { "name": "row-light", "value": "260ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "A just-logged board row settles from amber to the normal ground when opened." },
+      { "name": "material-standard", "value": "Material 3 standard spatial motion", "purpose": "Sheets, controls, and navigation state changes." }
+    ],
+    "breakpoints": [
+      { "name": "compact-phone", "value": "320px" },
+      { "name": "phone", "value": "360px" },
+      { "name": "expanded", "value": "600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one committed action in a sheet: Save, Create pass, or Set cap.",
+      "html": "<button class=\"ds-btn-primary\">SAVE CHANGES</button>",
+      "css": ".ds-btn-primary { height: 52px; padding: 0 24px; border: 0; border-radius: 10px; background: #FFD400; color: #0B0D10; font-family: 'Roboto Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; cursor: pointer; transition: filter 140ms ease, transform 140ms ease; } .ds-btn-primary:hover { filter: brightness(1.04); transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 2px solid #0B0D10; outline-offset: 3px; } .ds-btn-primary:active { transform: translateY(0); filter: brightness(0.96); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A reversible or non-primary action: cancel, delete, transfer, or open settings.",
+      "html": "<button class=\"ds-btn-secondary\">MOVE MONEY</button>",
+      "css": ".ds-btn-secondary { height: 48px; padding: 0 20px; border: 1px solid #2A2F35; border-radius: 10px; background: transparent; color: #FFFFFF; font-family: 'Roboto Mono', monospace; font-size: 9px; font-weight: 500; letter-spacing: 0.9px; text-transform: uppercase; cursor: pointer; transition: background 140ms ease, border-color 140ms ease; } .ds-btn-secondary:hover { background: rgba(255,255,255,0.05); border-color: #4A5158; } .ds-btn-secondary:focus-visible { outline: 2px solid #FFD400; outline-offset: 3px; }"
+    },
+    {
+      "name": "Choice Chip",
+      "kind": "chip",
+      "refersTo": "button-primary",
+      "description": "Single-choice filters, transaction type, account, and category selection.",
+      "html": "<div class=\"ds-chip-row\"><button class=\"ds-chip is-selected\">EXPENSE</button><button class=\"ds-chip\">INCOME</button><button class=\"ds-chip\">TRANSFER</button></div>",
+      "css": ".ds-chip-row { display: flex; gap: 6px; flex-wrap: nowrap; } .ds-chip { min-height: 44px; padding: 0 14px; border: 1px solid #2A2F35; border-radius: 999px; background: transparent; color: #9BA1A8; font-family: 'Roboto Mono', monospace; font-size: 9px; font-weight: 500; letter-spacing: 0.8px; cursor: pointer; white-space: nowrap; transition: background 140ms ease, color 140ms ease; } .ds-chip:hover { border-color: #6B7178; color: #FFFFFF; } .ds-chip.is-selected { background: #FFD400; border-color: #FFD400; color: #0B0D10; font-weight: 700; } .ds-chip:focus-visible { outline: 2px solid #FFD400; outline-offset: 3px; }"
+    },
+    {
+      "name": "Budget Pass",
+      "kind": "card",
+      "refersTo": "pass-card",
+      "description": "The primary document: month, remaining amount, cap context, segments, and a copyable period reference.",
+      "html": "<article class=\"ds-pass\"><div class=\"ds-pass-top\"><span>BUDGET PASS</span><span>SEQ 001</span></div><div class=\"ds-pass-body\"><div class=\"ds-pass-meta\"><span>OCTOBER 2026</span><span>11 DAYS REMAINING</span></div><div class=\"ds-pass-amount-row\"><div class=\"ds-pass-amount\">&#8369;0</div><div class=\"ds-pass-side\"><span>LEFT</span><strong>OF &#8369;0</strong><span>0.0% LEFT</span></div></div><div class=\"ds-pass-segments\"><div><span>WEEK</span><strong>1/5</strong></div><div><span>PER DAY</span><strong>&#8369;0</strong></div><div><span>STATUS</span><strong>SET YOUR CAP</strong></div></div><div class=\"ds-barcode\" aria-label=\"Period reference\"></div><div class=\"ds-pass-foot\"><span>PSYCHE / LOCAL</span><span class=\"ds-dot\"></span><span>NOTIFICATION LOG</span></div></div></article>",
+      "css": ".ds-pass { width: min(100%, 560px); border-radius: 16px; background: #FFFFFF; color: #0B0D10; box-shadow: 0 14px 34px rgba(0,0,0,0.38); overflow: hidden; } .ds-pass-top { display: flex; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid #DDE0E3; font-family: 'Roboto Mono', monospace; font-size: 7px; letter-spacing: 1px; color: #5C636B; } .ds-pass-body { padding: 12px 16px 14px; } .ds-pass-meta { display: flex; justify-content: space-between; gap: 12px; font-family: 'Roboto Mono', monospace; font-size: 8px; letter-spacing: 1px; } .ds-pass-meta span:last-child { color: #5C636B; } .ds-pass-amount-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 4px; } .ds-pass-amount { font-family: 'Barlow Condensed', sans-serif; font-size: 58px; line-height: 1; font-weight: 700; letter-spacing: -1.2px; } .ds-pass-side { display: grid; gap: 2px; justify-items: end; padding-bottom: 4px; font-family: 'Roboto Mono', monospace; font-size: 7px; letter-spacing: 0.8px; color: #5C636B; } .ds-pass-side strong { color: #0B0D10; font-size: 10px; font-weight: 500; } .ds-pass-segments { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 10px; border-top: 1px solid #DDE0E3; border-bottom: 1px solid #DDE0E3; } .ds-pass-segments > div { display: grid; gap: 3px; padding: 8px 10px; border-right: 1px solid #DDE0E3; } .ds-pass-segments > div:last-child { border-right: 0; } .ds-pass-segments span { font-family: 'Roboto Mono', monospace; font-size: 7px; letter-spacing: 0.7px; color: #5C636B; } .ds-pass-segments strong { font-family: 'Roboto Mono', monospace; font-size: 10px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-barcode { height: 32px; margin-top: 12px; background: repeating-linear-gradient(90deg, #0B0D10 0 2px, transparent 2px 5px, #0B0D10 5px 8px, transparent 8px 12px, #0B0D10 12px 13px, transparent 13px 17px); opacity: 0.9; } .ds-pass-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-family: 'Roboto Mono', monospace; font-size: 7px; letter-spacing: 0.7px; color: #5C636B; } .ds-dot { width: 6px; height: 6px; border-radius: 50%; background: #FFD400; }"
+    },
+    {
+      "name": "Ledger Row",
+      "kind": "custom",
+      "refersTo": "board-row",
+      "description": "The gate-board record row: time, description, amount, running left; newest row turns amber.",
+      "html": "<div class=\"ds-board\"><div class=\"ds-board-head\"><span>TIME</span><span>DESCRIPTION</span><span>AMOUNT</span><span>LEFT</span></div><div class=\"ds-board-row is-lit\"><span class=\"ds-time\">9:41<br><small>PM</small></span><span class=\"ds-desc\">NEW ROW <em>NOW</em></span><span class=\"ds-amount\">&#8722;&#8369;0</span><span class=\"ds-left\">&#8369;0</span></div><div class=\"ds-board-row\"><span class=\"ds-time\">9:12<br><small>PM</small></span><span class=\"ds-desc\">OLDER ROW</span><span class=\"ds-amount\">&#8722;&#8369;0</span><span class=\"ds-left\">&#8369;0</span></div></div>",
+      "css": ".ds-board { width: min(100%, 560px); background: #0B0D10; font-family: 'Roboto Mono', monospace; } .ds-board-head, .ds-board-row { display: grid; grid-template-columns: 42px 1fr 70px 56px; align-items: center; gap: 8px; } .ds-board-head { padding: 0 0 6px; color: #7C848C; font-size: 7px; letter-spacing: 1px; border-bottom: 1px solid #2A2F35; } .ds-board-head span:nth-child(3), .ds-board-head span:nth-child(4) { text-align: right; } .ds-board-row { min-height: 52px; padding: 7px 0; border-bottom: 1px solid #2A2F35; color: #FFFFFF; } .ds-board-row.is-lit { background: #FFD400; color: #0B0D10; padding-left: 6px; padding-right: 6px; margin: 0 -6px; } .ds-time { font-size: 8px; line-height: 1.1; letter-spacing: 0.4px; } .ds-time small { font-size: 6px; letter-spacing: 0.8px; } .ds-desc { font-family: 'Public Sans', sans-serif; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } .ds-desc em { margin-left: 6px; padding: 2px 4px; border-radius: 2px; background: #0B0D10; color: #FFD400; font-family: 'Roboto Mono', monospace; font-size: 6px; font-style: normal; letter-spacing: 1px; vertical-align: 2px; } .ds-amount, .ds-left { text-align: right; font-size: 10px; font-variant-numeric: tabular-nums; } .ds-left { font-size: 9px; opacity: 0.8; }"
+    },
+    {
+      "name": "Outlined Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Material 3 outlined text field for amounts, names, notes, and last-four digits.",
+      "html": "<label class=\"ds-field\"><span>AMOUNT</span><input value=\"&#8369;0\" inputmode=\"decimal\"></label>",
+      "css": ".ds-field { display: grid; gap: 4px; width: min(100%, 420px); font-family: 'Public Sans', sans-serif; } .ds-field span { font-size: 11px; color: #9BA1A8; } .ds-field input { height: 52px; padding: 0 14px; border: 1px solid #2A2F35; border-radius: 4px; background: transparent; color: #FFFFFF; font-family: 'Roboto Mono', monospace; font-size: 14px; font-variant-numeric: tabular-nums; } .ds-field input:hover { border-color: #6B7178; } .ds-field input:focus { outline: 0; border-color: #FFD400; box-shadow: 0 0 0 1px #FFD400 inset; }"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Four-destination Material 3 navigation; signal amber marks the active destination.",
+      "html": "<nav class=\"ds-nav\"><a class=\"is-active\" href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z\"/></svg><span>HOME</span></a><a href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z\"/></svg><span>ACTIVITY</span></a><a href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6h18v12H3zm2 2v8h14V8zm2 2h6v2H7z\"/></svg><span>BUDGETS</span></a><a href=\"#\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 5h16v14H4zm2 2v10h12V7zm2 2h4v4H8z\"/></svg><span>ACCOUNTS</span></a></nav>",
+      "css": ".ds-nav { display: flex; align-items: stretch; min-height: 66px; background: #0B0D10; border-top: 1px solid #2A2F35; font-family: 'Roboto Mono', monospace; } .ds-nav a { flex: 1; display: grid; place-items: center; gap: 5px; padding: 9px 4px 6px; color: #8A9199; text-decoration: none; font-size: 8px; font-weight: 500; letter-spacing: 1.1px; } .ds-nav a.is-active { color: #FFD400; font-weight: 700; } .ds-nav svg { width: 21px; height: 21px; fill: currentColor; } .ds-nav a:hover { color: #FFFFFF; } .ds-nav a:focus-visible { outline: 2px solid #FFD400; outline-offset: -4px; }"
+    },
+    {
+      "name": "Stamp",
+      "kind": "chip",
+      "refersTo": "stamp",
+      "description": "A small mono ticket stamp for state, DEFAULT-account, and category labels.",
+      "html": "<div class=\"ds-stamp-row\"><span class=\"ds-stamp\">TIGHT</span><span class=\"ds-stamp is-filled\">JUST LOGGED</span></div>",
+      "css": ".ds-stamp-row { display: flex; gap: 8px; align-items: center; } .ds-stamp { display: inline-flex; align-items: center; padding: 4px 6px; border: 1px solid #DDE0E3; border-radius: 2px; color: #5C636B; font-family: 'Roboto Mono', monospace; font-size: 8px; font-weight: 500; letter-spacing: 1.1px; text-transform: uppercase; } .ds-stamp.is-filled { border-color: transparent; background: #FFD400; color: #0B0D10; }"
+    },
+    {
+      "name": "Capture FAB",
+      "kind": "button",
+      "refersTo": "fab",
+      "description": "The single amber primary action, always available for a quick expense.",
+      "html": "<button class=\"ds-fab\" aria-label=\"Log expense\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z\"/></svg></button>",
+      "css": ".ds-fab { width: 60px; height: 60px; display: grid; place-items: center; border: 0; border-radius: 999px; background: #FFD400; color: #0B0D10; box-shadow: 0 6px 16px rgba(0,0,0,0.24); cursor: pointer; transition: transform 140ms ease, filter 140ms ease; } .ds-fab svg { width: 26px; height: 26px; fill: currentColor; } .ds-fab:hover { transform: translateY(-1px); filter: brightness(1.04); } .ds-fab:focus-visible { outline: 2px solid #FFFFFF; outline-offset: 4px; } .ds-fab:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Top Feedback Banner",
+      "kind": "custom",
+      "refersTo": "feedback-banner",
+      "description": "A floating top notice for saves, permission changes, copy confirmations, and undo actions.",
+      "html": "<div class=\"ds-notice\"><div class=\"ds-notice-icon\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m9.5 16.2-4.2-4.2 1.4-1.4 2.8 2.8 7-7 1.4 1.4z\"/></svg></div><div class=\"ds-notice-copy\"><span>NOTICE</span><p>Expense logged</p></div><button class=\"ds-notice-action\">UNDO</button></div>",
+      "css": ".ds-notice { width: min(100%, 560px); display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid rgba(122,91,0,0.45); border-radius: 12px; background: #1C2127; color: #FFFFFF; box-shadow: 0 12px 28px rgba(0,0,0,0.3); font-family: 'Public Sans', sans-serif; animation: ds-notice-in 220ms cubic-bezier(0.4,0,0.2,1) both; } .ds-notice-icon { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 7px; background: #FFD400; color: #0B0D10; } .ds-notice-icon svg { width: 17px; height: 17px; fill: currentColor; } .ds-notice-copy { flex: 1; min-width: 0; } .ds-notice-copy span { display: block; color: #FFD400; font-family: 'Roboto Mono', monospace; font-size: 7px; letter-spacing: 1.1px; } .ds-notice-copy p { margin: 2px 0 0; font-size: 14px; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-notice-action { min-height: 44px; padding: 0 8px; border: 0; background: transparent; color: #FFD400; font-family: 'Roboto Mono', monospace; font-size: 8px; font-weight: 700; letter-spacing: 0.9px; cursor: pointer; } .ds-notice-action:hover { text-decoration: underline; text-underline-offset: 3px; } .ds-notice-action:focus-visible { outline: 2px solid #FFD400; outline-offset: 2px; } @keyframes ds-notice-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Departure Board",
+    "overview": "The Finance Tracker behaves like a small private terminal: a white boarding pass states what is left this month, and a quiet gate board records what just happened. The pass is the one document lifted off the ground; the board is the working record beneath it. The app should feel issued rather than marketed: precise, local, and slightly mechanical, with the warmth of a personal object.\n\nDark is the native condition — an ink terminal at night. Light is not an inversion but the same terminal during the day: cool paper ground, white pass, darker amber for text. System theme is the default; Settings can pin Light or Dark without changing the palette. Geometry, type, and hierarchy stay fixed; only the ground/pass relationship changes. Text size follows Android rather than an app-only scale. Material 3 governs navigation, sheets, fields, switches, and feedback so the custom pass/board composition never becomes a novelty control set.\n\nThe interface is dense but never cramped. Every label is short enough to scan from the notification shade, every amount is tabular, and every state has a plain-language name. No dashboard cards, no gradient hero, no invented financial data.",
+    "keyCharacteristics": [
+      "One white pass over a flat board; the pass is the only surface allowed a resting shadow.",
+      "Amber is attention, not decoration: lit row, FAB, selected controls, and the notification dot.",
+      "Condensed display numerals, plain body text, and mono labels in a strict hierarchy.",
+      "Hairline rules, perforations, notches, and barcode bars instead of ornamental card stacks.",
+      "Dark-first terminal; daytime paper variant with the same ticket geometry.",
+      "Native Material 3 behavior, edge-to-edge insets, and a 320dp-first compact composition."
+    ],
+    "rules": [
+      { "name": "The One Lifted Surface Rule", "body": "The pass may lift; the board stays flat. Sheets and the capture overlay may lift because they interrupt the surface, not because every container needs a shadow.", "section": "elevation" },
+      { "name": "The Amber Means Attention Rule", "body": "Alert yellow is reserved for the lit new row, the FAB, selected navigation and controls, progress fills, and the pass's notification dot. It is never body copy or a large decorative field.", "section": "colors" },
+      { "name": "The Honest Numbers Rule", "body": "Never prefill a balance, cap, or category amount. Empty states say what to do; they do not demonstrate with fake money.", "section": "overview" },
+      { "name": "The Signal Rarity Rule", "body": "Amber may own the FAB and the lit row, but it should not become a page background or a body-text color. Its power comes from being scarce and momentary.", "section": "colors" },
+      { "name": "The Paper Inversion Rule", "body": "On light grounds, text/icons that were amber become `alert-ink`; amber remains a fill for shapes. Do not put bright amber words on white.", "section": "colors" },
+      { "name": "The Tabular Money Rule", "body": "Every amount column, time column, running balance, and cap uses tabular figures. Money is compared by digit position, never by proportional rhythm.", "section": "typography" },
+      { "name": "The One Display Rule", "body": "Only one display-sized number may appear in a viewport. The pass amount wins; entry detail may use a smaller pass amount, but not a second competing hero.", "section": "typography" }
+    ],
+    "dos": [
+      "Do keep the pass as the only lifted document; let the board sit directly on the ground.",
+      "Do use `alert-ink` for amber-like text/icons on light grounds and bright `alert` only as a fill.",
+      "Do preserve tabular figures, uppercase mono table labels, and 1dp hairlines.",
+      "Do show “SET YOUR CAP” with no fabricated values until the owner sets a cap.",
+      "Do auto-size the pass amount and allow long board descriptions to ellipsize.",
+      "Do keep every primary action at 48dp or more and every sheet scrollable above the IME.",
+      "Do describe over-budget as a positive “over by” amount in tables and notifications; keep the negative sign only where the ledger's running left truly goes below zero."
+    ],
+    "donts": [
+      "Don't turn rows or feature areas into nested cards or icon+heading+text tiles.",
+      "Don't use amber for body copy, large backgrounds, or decoration unrelated to a live state.",
+      "Don't put bright amber text on white or rely on color alone to explain tight/over.",
+      "Don't add a second hero number, gradient text, glass/blur decoration, or arbitrary drop shadows.",
+      "Don't prefill balances, caps, categories, or activity to make the empty state look busy.",
+      "Don't invent XP, levels, or gaming chrome inside the finance surface; that mechanic is not designed yet."
+    ]
+  }
+}
