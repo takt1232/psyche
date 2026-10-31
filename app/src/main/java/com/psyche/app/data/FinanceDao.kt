@@ -30,6 +30,9 @@ abstract class FinanceDao {
     @Query("SELECT * FROM savings_goals ORDER BY archived ASC, sortOrder ASC, id ASC")
     abstract fun observeGoals(): Flow<List<GoalEntity>>
 
+    @Query("SELECT * FROM quick_transactions ORDER BY archived ASC, sortOrder ASC, id ASC")
+    abstract fun observeQuickTransactions(): Flow<List<QuickTransactionEntity>>
+
     @Query("SELECT * FROM app_settings")
     abstract fun observeSettings(): Flow<List<SettingEntity>>
 
@@ -48,8 +51,17 @@ abstract class FinanceDao {
     @Query("SELECT * FROM savings_goals")
     abstract suspend fun allGoals(): List<GoalEntity>
 
+    @Query("SELECT * FROM quick_transactions")
+    abstract suspend fun allQuickTransactions(): List<QuickTransactionEntity>
+
+    @Query("SELECT * FROM quick_transactions WHERE accountId = :accountId AND archived = 0")
+    abstract suspend fun activeQuickTransactionsForAccount(accountId: Long): List<QuickTransactionEntity>
+
     @Upsert
     abstract suspend fun upsertAccount(account: AccountEntity): Long
+
+    @Upsert
+    abstract suspend fun upsertQuickTransaction(quickTransaction: QuickTransactionEntity): Long
 
     @Upsert
     abstract suspend fun upsertCategory(category: CategoryEntity): Long

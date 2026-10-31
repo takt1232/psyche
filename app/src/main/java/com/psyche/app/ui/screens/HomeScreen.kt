@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.psyche.app.data.AccountType
+import com.psyche.app.data.QuickTransaction
+import com.psyche.app.data.TransactionType
 import com.psyche.app.ui.FinanceUiState
 import com.psyche.app.ui.MonthView
 import com.psyche.app.ui.components.AppTopBar
@@ -53,7 +55,8 @@ import com.psyche.app.util.Money
 @Composable
 fun HomeScreen(
     state: FinanceUiState,
-    notificationLogOn: Boolean,
+    onRunQuick: (QuickTransaction) -> Unit,
+    onManageQuick: () -> Unit,
     onCapture: () -> Unit,
     onSettings: () -> Unit,
     onOpenEntry: (ActivityRow) -> Unit,
@@ -88,7 +91,7 @@ fun HomeScreen(
             item {
                 BudgetPassCard(
                     view = home,
-                    notificationLogOn = notificationLogOn,
+                    quickActionCount = state.quickTransactions.size,
                     onEditCap = onEditCap,
                     onCopyPeriodSummary = onCopySummary,
                 )
@@ -102,6 +105,16 @@ fun HomeScreen(
                         onSetup = onSetup,
                         onAddAccount = onAddAccount,
                         onAccounts = onAccounts,
+                    )
+                }
+            }
+            if (state.quickTransactions.isNotEmpty() || !state.needsSetup) {
+                item {
+                    Spacer(Modifier.height(22.dp))
+                    OneTapSection(
+                        quickTransactions = state.quickTransactions,
+                        onRun = onRunQuick,
+                        onManage = onManageQuick,
                     )
                 }
             }
@@ -261,6 +274,116 @@ private fun QuietSetupAction(
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(12.dp),
         )
+    }
+}
+
+@Composable
+private fun OneTapSection(
+    quickTransactions: List<QuickTransaction>,
+    onRun: (QuickTransaction) -> Unit,
+    onManage: () -> Unit,
+) {
+    val palette = LocalPsychePalette.current
+    Column(Modifier.fillMaxWidth()) {
+        SectionHeading(
+            title = "One-tap",
+            trailing = {
+                Text(
+                    text = if (quickTransactions.isEmpty()) "SET UP" else "EDIT",
+                    style = PassType.monoMicro.copy(letterSpacing = 0.9.sp),
+                    color = palette.muted,
+                    modifier = Modifier
+                        .clickable(role = Role.Button, onClick = onManage)
+                        .padding(vertical = 8.dp),
+                )
+            },
+        )
+        Spacer(Modifier.height(8.dp))
+        if (quickTransactions.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = palette.boardRow,
+                border = BorderStroke(1.dp, palette.alert.copy(alpha = 0.45f)),
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(
+                        text = "Log a preset in one tap",
+                        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                        color = palette.onGround,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = "Custom buttons for the home-screen widget. Each tap logs the amount immediately.",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        color = palette.muted,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    SecondaryAction(
+                        text = "Make one-tap actions",
+                        onClick = onManage,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                quickTransactions.take(4).forEach { quick ->
+                    QuickActionCard(quick = quick, onRun = { onRun(quick) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionCard(
+    quick: QuickTransaction,
+    onRun: () -> Unit,
+) {
+    val palette = LocalPsychePalette.current
+    Surface(
+        onClick = onRun,
+        modifier = Modifier.width(152.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = palette.boardRow,
+        border = BorderStroke(1.dp, palette.boardLine),
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MonoText(
+                    text = if (quick.type == TransactionType.EXPENSE) "EXPENSE" else "INCOME",
+                    color = palette.accentText,
+                    style = PassType.monoMicro.copy(fontSize = 7.sp, letterSpacing = 0.9.sp),
+                )
+                Spacer(Modifier.weight(1f))
+                MonoText(
+                    text = "TAP",
+                    color = palette.faint,
+                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = quick.label,
+                style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                color = palette.onGround,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = Money.formatPeso(quick.amountCents),
+                style = PassType.monoData.copy(fontSize = 15.sp),
+                color = palette.onGround,
+                maxLines = 1,
+            )
+        }
     }
 }
 

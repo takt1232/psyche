@@ -10,10 +10,13 @@ import com.psyche.app.data.AccountType
 import com.psyche.app.data.Category
 import com.psyche.app.data.FinanceRepository
 import com.psyche.app.data.LedgerEntry
+import com.psyche.app.data.QuickLogResult
+import com.psyche.app.data.QuickTransaction
 import com.psyche.app.data.SavingsGoal
 import com.psyche.app.data.SettingsKeys
 import com.psyche.app.data.ThemeMode
 import com.psyche.app.data.TransactionType
+import com.psyche.app.util.Money
 import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
@@ -345,38 +348,57 @@ class FinanceViewModel(
         id
     }
 
-    fun setNotificationsEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            repository.setNotificationsEnabled(enabled)
-            if (!enabled) _events.emit(UiEvent("Notification log off"))
-        }
+    suspend fun createQuickTransaction(
+        label: String,
+        type: TransactionType,
+        amountCents: Long,
+        accountId: Long,
+        categoryId: Long?,
+        note: String,
+    ): Result<Unit> = runCatching {
+        repository.addQuickTransaction(label, type, amountCents, accountId, categoryId, note)
+        _events.emit(UiEvent("One-tap action added"))
     }
 
-    fun setShowAmountOnLockScreen(show: Boolean) {
+    suspend fun updateQuickTransaction(quick: QuickTransaction): Result<Unit> = runCatching {
+        repository.updateQuickTransaction(quick)
+        _events.emit(UiEvent("One-tap action updated"))
+    }
+
+    suspend fun archiveQuickTransaction(quick: QuickTransaction): Result<Unit> = runCatching {
+        repository.setQuickTransactionArchived(quick.id, true)
+        _events.emit(UiEvent("One-tap action archived"))
+    }
+
+    suspend fun restoreQuickTransaction(quick: QuickTransaction): Result<Unit> = runCatching {
+        repository.setQuickTransactionArchived(quick.id, false)
+        _events.emit(UiEvent("One-tap action restored"))
+    }
+
+    suspend fun runQuickTransaction(quick: QuickTransaction): Result<QuickLogResult> = runCatching {
+        repository.runQuickTransaction(quick.id)
+    }
+
+    fun runQuickTransactionFromUi(quick: QuickTransaction) {
         viewModelScope.launch {
-            repository.setShowAmountOnLockScreen(show)
+            runQuickTransaction(quick)
+                .onSuccess { result ->
+                    _events.emit(
+                        UiEvent(
+                            message = "${result.label} \u00B7 ${Money.formatPeso(result.amountCents)} logged",
+                            actionLabel = "UNDO",
+                            followUp = SnackbarFollowUp.UndoCreate(result.entryId),
+                        ),
+                    )
+                }
+                .onFailure {
+                    _events.emit(UiEvent(it.message ?: "Couldn't log that one-tap action."))
+                }
         }
     }
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { repository.setThemeMode(mode) }
-    }
-
-    fun markNotificationPromptSeen() {
-        viewModelScope.launch { repository.markNotificationPromptSeen() }
-    }
-
-    fun onNotificationPermissionResult(granted: Boolean) {
-        viewModelScope.launch {
-            repository.markNotificationPromptSeen()
-            if (granted) {
-                repository.setNotificationsEnabled(true)
-                _events.emit(UiEvent("Notification log on"))
-            } else {
-                repository.setNotificationsEnabled(false)
-                _events.emit(UiEvent("Notifications are off. The + button still logs expenses."))
-            }
-        }
     }
 
     fun notify(message: String) {

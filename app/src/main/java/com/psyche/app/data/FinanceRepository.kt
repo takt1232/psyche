@@ -7,6 +7,8 @@ import java.time.YearMonth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private data class LedgerPart(
     val accounts: List<AccountEntity>,
@@ -19,6 +21,9 @@ class FinanceRepository(
     private val dao: FinanceDao,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+
+    /** Serialises balance-checked writes so two fast widget taps cannot overdraw. */
+    private val writeMutex = Mutex()
 
     val snapshot: Flow<FinanceSnapshot> = combine(
         combine(
@@ -37,7 +42,8 @@ class FinanceRepository(
         dao.observeBudgets(),
         dao.observeAllocations(),
         dao.observeGoals(),
-    ) { ledger, budgets, allocations, goals ->
+        dao.observeQuickTransactions(),
+    ) { ledger, budgets, allocations, goals, quickTransactions ->
         FinanceSnapshot(
             accounts = ledger.accounts.map { it.toDomain() },
             categories = ledger.categories.map { it.toDomain() },
@@ -48,6 +54,7 @@ class FinanceRepository(
                 .groupBy { it.yearMonth }
                 .mapValues { (_, values) -> values.associate { it.categoryId to it.allocatedCents } },
             goals = goals.map { it.toDomain() },
+            quickTransactions = quickTransactions.map { it.toDomain() },
             settings = FinanceSettings.from(ledger.settings),
         )
     }
@@ -59,7 +66,7 @@ class FinanceRepository(
         description: String,
         occurredAt: Long = now(),
         lightRow: Boolean = true,
-    ): Long {
+    ): Long = writeMutex.withLock {
         val source = accountBalanceFor(accountId)
         require(amountCents <= source.availableToMoveCents) {
             if (source.account.type == AccountType.CREDIT) {
@@ -68,7 +75,7 @@ class FinanceRepository(
                 "Only ${Money.formatPeso(source.availableToMoveCents)} is available in ${source.account.name}."
             }
         }
-        return addEntry(
+        addEntry(
             type = TransactionType.EXPENSE,
             amountCents = amountCents,
             accountId = accountId,
@@ -107,7 +114,7 @@ class FinanceRepository(
         description: String,
         occurredAt: Long = now(),
         lightRow: Boolean = true,
-    ): Long {
+    ): Long = writeMutex.withLock {
         require((toAccountId == null) != (goalId == null)) {
             "A transfer needs one destination."
         }
@@ -142,7 +149,7 @@ class FinanceRepository(
                 }
             }
         }
-        return addEntry(
+        addEntry(
             type = TransactionType.TRANSFER,
             amountCents = amountCents,
             accountId = fromAccountId,
@@ -209,7 +216,7 @@ class FinanceRepository(
         return id
     }
 
-    suspend fun updateEntry(entry: LedgerEntry) {
+    suspend fun updateEntry(entry: LedgerEntry) = writeMutex.withLock {
         require(entry.amountCents in 1..Money.MAX_AMOUNT_CENTS) {
             "Enter an amount between \u20B10.01 and \u20B1999,999.99."
         }
@@ -471,6 +478,11 @@ class FinanceRepository(
         require(!current.isDefault || !archived) {
             "The default Cash account cannot be archived."
         }
+        if (archived) {
+            require(dao.activeQuickTransactionsForAccount(id).isEmpty()) {
+                "This account is used by a one-tap action. Archive or edit that action first."
+            }
+        }
         dao.upsertAccount(current.copy(archived = archived))
     }
 
@@ -503,24 +515,139 @@ class FinanceRepository(
         dao.upsertGoal(current.copy(archived = archived))
     }
 
+    suspend fun addQuickTransaction(
+        label: String,
+        type: TransactionType,
+        amountCents: Long,
+        accountId: Long,
+        categoryId: Long?,
+        note: String,
+    ): Long {
+        validateQuickTransaction(type, amountCents, accountId, categoryId, label)
+        val all = dao.allQuickTransactions()
+        require(all.count { !it.archived } < MAX_QUICK_ACTIONS) {
+            "The widget has four slots. Archive one action first."
+        }
+        return dao.upsertQuickTransaction(
+            QuickTransactionEntity(
+                label = label.trim(),
+                type = type.storage,
+                amountCents = amountCents,
+                accountId = accountId,
+                categoryId = categoryId?.takeIf { type == TransactionType.EXPENSE },
+                note = note.trim().take(80),
+                sortOrder = (all.maxOfOrNull { it.sortOrder } ?: -1) + 1,
+                archived = false,
+            ),
+        )
+    }
+
+    suspend fun updateQuickTransaction(quick: QuickTransaction) {
+        require(quick.id > 0) { "Choose a one-tap action." }
+        validateQuickTransaction(
+            type = quick.type,
+            amountCents = quick.amountCents,
+            accountId = quick.accountId,
+            categoryId = quick.categoryId,
+            label = quick.label,
+        )
+        val all = dao.allQuickTransactions()
+        val activeOthers = all.count { !it.archived && it.id != quick.id }
+        if (!quick.archived) {
+            require(activeOthers < MAX_QUICK_ACTIONS) {
+                "The widget has four slots. Archive one action first."
+            }
+        }
+        dao.upsertQuickTransaction(
+            quick.copy(
+                label = quick.label.trim(),
+                categoryId = quick.categoryId?.takeIf { quick.type == TransactionType.EXPENSE },
+                note = quick.note.trim().take(80),
+            ).toEntity(),
+        )
+    }
+
+    suspend fun setQuickTransactionArchived(id: Long, archived: Boolean) {
+        val current = dao.allQuickTransactions().firstOrNull { it.id == id } ?: return
+        if (!archived) {
+            val activeOthers = dao.allQuickTransactions()
+                .count { !it.archived && it.id != id }
+            require(activeOthers < MAX_QUICK_ACTIONS) {
+                "The widget has four slots. Archive one action first."
+            }
+        }
+        dao.upsertQuickTransaction(current.copy(archived = archived))
+    }
+
+    suspend fun runQuickTransaction(id: Long): QuickLogResult {
+        val quick = dao.allQuickTransactions()
+            .firstOrNull { it.id == id && !it.archived }
+            ?.toDomain()
+            ?: error("This one-tap action is no longer available.")
+        val account = dao.allAccounts().firstOrNull { it.id == quick.accountId && !it.archived }
+            ?: error("The account for ${quick.label} is archived. Edit the action first.")
+        val description = quick.note.ifBlank { quick.label }
+        val entryId = when (quick.type) {
+            TransactionType.EXPENSE -> addExpense(
+                amountCents = quick.amountCents,
+                accountId = account.id,
+                categoryId = quick.categoryId,
+                description = description,
+                occurredAt = now(),
+                lightRow = true,
+            )
+
+            TransactionType.INCOME -> addIncome(
+                amountCents = quick.amountCents,
+                accountId = account.id,
+                description = description,
+                occurredAt = now(),
+                lightRow = true,
+            )
+
+            TransactionType.TRANSFER -> error("One-tap actions are expenses or income.")
+        }
+        return QuickLogResult(
+            entryId = entryId,
+            label = quick.label,
+            amountCents = quick.amountCents,
+            type = quick.type,
+        )
+    }
+
+    private suspend fun validateQuickTransaction(
+        type: TransactionType,
+        amountCents: Long,
+        accountId: Long,
+        categoryId: Long?,
+        label: String,
+    ) {
+        require(type == TransactionType.EXPENSE || type == TransactionType.INCOME) {
+            "One-tap actions are expenses or income."
+        }
+        val clean = label.trim()
+        require(clean.isNotEmpty()) { "Name the one-tap action." }
+        require(clean.length <= 24) { "Keep the one-tap label under 24 characters." }
+        require(amountCents in 1..Money.MAX_AMOUNT_CENTS) {
+            "Enter an amount between \u20B10.01 and \u20B1999,999.99."
+        }
+        require(dao.allAccounts().any { it.id == accountId && !it.archived }) {
+            "Choose an active account."
+        }
+        if (categoryId != null) {
+            require(type == TransactionType.EXPENSE) { "Only expenses use a category." }
+            require(dao.allCategories().any { it.id == categoryId }) {
+                "Choose a category from the list."
+            }
+        }
+    }
+
     suspend fun setSetting(key: String, value: String) {
         dao.upsertSetting(SettingEntity(key, value))
     }
 
-    suspend fun setNotificationsEnabled(enabled: Boolean) {
-        setSetting(SettingsKeys.NOTIFICATIONS_ENABLED, enabled.toString())
-    }
-
-    suspend fun setShowAmountOnLockScreen(show: Boolean) {
-        setSetting(SettingsKeys.SHOW_AMOUNT_ON_LOCK_SCREEN, show.toString())
-    }
-
     suspend fun setThemeMode(mode: ThemeMode) {
         setSetting(SettingsKeys.THEME_MODE, mode.storage)
-    }
-
-    suspend fun markNotificationPromptSeen() {
-        setSetting(SettingsKeys.NOTIFICATION_PROMPT_SEEN, "true")
     }
 
 }

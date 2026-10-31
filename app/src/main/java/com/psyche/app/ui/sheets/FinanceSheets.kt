@@ -30,8 +30,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -60,6 +58,8 @@ import com.psyche.app.data.Account
 import com.psyche.app.data.AccountType
 import com.psyche.app.data.Category
 import com.psyche.app.data.LedgerEntry
+import com.psyche.app.data.MAX_QUICK_ACTIONS
+import com.psyche.app.data.QuickTransaction
 import com.psyche.app.data.SavingsGoal
 import com.psyche.app.data.ThemeMode
 import com.psyche.app.data.TransactionType
@@ -944,7 +944,13 @@ fun AccountEditorSheet(
                     text = "Archive account",
                     onClick = {
                         scope.launch {
-                            viewModel.archiveAccount(account).onSuccess { onDismiss() }
+                            viewModel.archiveAccount(account)
+                                .onSuccess { onDismiss() }
+                                .onFailure {
+                                    viewModel.notify(
+                                        it.message ?: "Couldn't archive the account.",
+                                    )
+                                }
                         }
                     },
                     modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -1890,10 +1896,9 @@ private fun signedAmount(entry: LedgerEntry): String {
 fun SettingsSheet(
     viewModel: FinanceViewModel,
     state: FinanceUiState,
-    notificationPermissionGranted: Boolean,
     onCopySummary: () -> Unit,
-    onEnableNotifications: () -> Unit,
-    onOpenNotificationSettings: () -> Unit,
+    onManageQuickActions: () -> Unit,
+    onAddWidget: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
@@ -1927,58 +1932,46 @@ fun SettingsSheet(
             color = palette.muted,
         )
         Spacer(Modifier.height(22.dp))
-        SettingsSection("NOTIFICATION LOG")
-        SettingsSwitchRow(
-            title = "Ongoing budget pass",
-            body = "A silent notification with a Log expense action. The yellow + button still works without it.",
-            checked = settings.notificationsEnabled,
-            onCheckedChange = { enabled ->
-                if (enabled) {
-                    onEnableNotifications()
-                } else {
-                    viewModel.setNotificationsEnabled(false)
-                }
-            },
-        )
-        if (settings.notificationsEnabled && !notificationPermissionGranted) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = palette.boardRow,
-                border = BorderStroke(1.dp, palette.danger),
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Text(
-                        text = "Android is blocking notifications",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = palette.danger,
-                    )
-                    Text(
-                        text = "Allow Psyche notifications in system settings. The log resumes when you return.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = palette.muted,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    SecondaryAction(
-                        text = "Open notification settings",
-                        onClick = onOpenNotificationSettings,
-                    )
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-        }
-        SettingsSwitchRow(
-            title = "Show amounts on the lock screen",
-            body = "Off by default. The shade still shows the amount; the lock screen hides the pass entirely.",
-            checked = settings.showAmountOnLockScreen,
-            enabled = settings.notificationsEnabled && notificationPermissionGranted,
-            onCheckedChange = viewModel::setShowAmountOnLockScreen,
+        SettingsSection("ONE-TAP ACTIONS")
+        Text(
+            text = "Custom buttons for the home-screen widget. Each tap logs the amount immediately, with no app open.",
+            style = MaterialTheme.typography.bodySmall,
+            color = palette.muted,
         )
         Spacer(Modifier.height(10.dp))
-        SecondaryAction(
-            text = "System notification settings",
-            onClick = onOpenNotificationSettings,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = palette.boardRow,
+            border = BorderStroke(1.dp, palette.boardLine),
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    MonoText(
+                        text = "${state.quickTransactions.size}/$MAX_QUICK_ACTIONS ACTIVE",
+                        color = if (state.quickTransactions.isEmpty()) palette.faint else palette.accentText,
+                        style = PassType.monoLabel.copy(fontSize = 8.sp, letterSpacing = 1.1.sp),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    MonoText(
+                        text = if (state.quickTransactions.isEmpty()) "NOT SET UP" else "WIDGET READY",
+                        color = palette.faint,
+                        style = PassType.monoMicro.copy(fontSize = 7.sp),
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                SecondaryAction(
+                    text = "Manage one-tap actions",
+                    onClick = onManageQuickActions,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(6.dp))
+                SecondaryAction(
+                    text = "Add widget",
+                    onClick = onAddWidget,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
         Spacer(Modifier.height(22.dp))
         SettingsSection("THE PASS")
         Surface(
@@ -2043,55 +2036,6 @@ private fun SettingsSection(title: String) {
         style = PassType.monoLabel.copy(letterSpacing = 1.4.sp),
         modifier = Modifier.padding(bottom = 8.dp),
     )
-}
-
-@Composable
-private fun SettingsSwitchRow(
-    title: String,
-    body: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    enabled: Boolean = true,
-) {
-    val palette = LocalPsychePalette.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 7.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = if (enabled) palette.onGround else palette.faint,
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = body,
-                style = MaterialTheme.typography.bodySmall,
-                color = palette.muted,
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = palette.onAlert,
-                checkedTrackColor = palette.alert,
-                checkedBorderColor = palette.alert,
-                uncheckedThumbColor = palette.faint,
-                uncheckedTrackColor = palette.boardRow,
-                uncheckedBorderColor = palette.panelLine,
-                disabledCheckedThumbColor = palette.faint,
-                disabledCheckedTrackColor = palette.boardLine,
-                disabledUncheckedThumbColor = palette.faint,
-                disabledUncheckedTrackColor = palette.boardRow,
-            ),
-        )
-    }
 }
 
 @Composable
@@ -2322,104 +2266,459 @@ fun SetupSheet(
 }
 
 @Composable
-fun NotificationIntroSheet(
-    onEnable: () -> Unit,
+fun QuickTransactionsSheet(
+    viewModel: FinanceViewModel,
+    quickTransactions: List<QuickTransaction>,
+    accounts: List<Account>,
+    categories: List<Category>,
+    onAdd: () -> Unit,
+    onEdit: (QuickTransaction) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
+    val scope = rememberCoroutineScope()
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val activeCount = quickTransactions.count { !it.archived }
+
     SheetFrame(onDismiss = onDismiss) {
         SheetHeader(
-            eyebrow = "The shade",
-            title = "CAPTURE WITHOUT OPENING",
+            eyebrow = "The widget",
+            title = "ONE-TAP ACTIONS",
             onClose = onDismiss,
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
-            text = "The pass can leave a quiet, ongoing notification with a Log expense button. Amount first; account and category can change after.",
-            style = MaterialTheme.typography.bodyMedium,
+            text = "Preset buttons for the home-screen widget. A tap logs the amount immediately, using the saved account and category.",
+            style = MaterialTheme.typography.bodySmall,
             color = palette.muted,
         )
-        Spacer(Modifier.height(16.dp))
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = palette.boardRow,
-            border = BorderStroke(1.dp, palette.boardLine),
-        ) {
-            Column(Modifier.padding(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .background(palette.alert, RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_stat_pass),
-                            contentDescription = null,
-                            tint = palette.onAlert,
-                            modifier = Modifier.size(17.dp),
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MonoText(
+                text = "$activeCount/$MAX_QUICK_ACTIONS ACTIVE",
+                color = if (activeCount == 0) palette.faint else palette.accentText,
+                style = PassType.monoLabel.copy(fontSize = 8.sp, letterSpacing = 1.1.sp),
+            )
+            Spacer(Modifier.weight(1f))
+            MonoText(
+                text = "4 SLOTS",
+                color = palette.faint,
+                style = PassType.monoMicro.copy(fontSize = 7.sp),
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        if (quickTransactions.isEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = palette.boardRow,
+                border = BorderStroke(1.dp, palette.boardLine),
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(
+                        text = "No one-tap actions yet",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = palette.onGround,
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = "Start with the amount you log most often, like coffee, fare, or load.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.muted,
+                    )
+                }
+            }
+        } else {
+            quickTransactions.forEach { quick ->
+                val account = accounts.firstOrNull { it.id == quick.accountId }
+                val category = quick.categoryId?.let { id ->
+                    categories.firstOrNull { it.id == id }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button) { onEdit(quick) }
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Psyche budget pass",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = palette.onGround,
-                            maxLines = 1,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = quick.label,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = if (quick.archived) palette.muted else palette.onGround,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (quick.archived) {
+                                Spacer(Modifier.width(6.dp))
+                                MonoText(
+                                    text = "ARCHIVED",
+                                    color = palette.faint,
+                                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(2.dp))
                         MonoText(
-                            text = "${Formats.monthYear(YearMonth.now())} \u00B7 BUDGET PASS",
+                            text = buildString {
+                                append(if (quick.type == TransactionType.EXPENSE) "EXPENSE" else "INCOME")
+                                append(" \u00B7 ")
+                                append(account?.name ?: "MISSING ACCOUNT")
+                                if (quick.type == TransactionType.EXPENSE) {
+                                    append(" \u00B7 ")
+                                    append(
+                                        category?.name
+                                            ?: if (quick.categoryId != null) {
+                                                "ARCHIVED CATEGORY"
+                                            } else {
+                                                "UNCATEGORIZED"
+                                            },
+                                    )
+                                }
+                            }.uppercase(Locale.US),
                             color = palette.faint,
                             style = PassType.monoMicro.copy(fontSize = 7.sp),
                         )
                     }
-                    MonoText(
-                        text = "NOW",
-                        color = palette.faint,
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = Money.formatPeso(quick.amountCents),
+                        style = PassType.monoData.copy(fontSize = 12.sp),
+                        color = if (quick.archived) palette.muted else palette.onGround,
+                        maxLines = 1,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = if (quick.archived) "RESTORE" else "ARCHIVE",
                         style = PassType.monoMicro.copy(fontSize = 7.sp),
+                        color = if (quick.archived) palette.accentText else palette.faint,
+                        modifier = Modifier
+                            .clickable(role = Role.Button) {
+                                error = null
+                                saving = true
+                                scope.launch {
+                                    val result = if (quick.archived) {
+                                        viewModel.restoreQuickTransaction(quick)
+                                    } else {
+                                        viewModel.archiveQuickTransaction(quick)
+                                    }
+                                    result.onFailure {
+                                        error = it.message ?: "Couldn't update the action."
+                                    }
+                                    saving = false
+                                }
+                            }
+                            .padding(8.dp),
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Open the pass to check what is left.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = palette.onGround,
+                Hairline(color = palette.boardLine)
+            }
+        }
+        if (error != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = error ?: "",
+                style = PassType.monoDataSmall,
+                color = palette.danger,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        PrimaryAction(
+            text = if (activeCount >= MAX_QUICK_ACTIONS) "Four slots full" else "Add one-tap action",
+            onClick = onAdd,
+            enabled = !saving && activeCount < MAX_QUICK_ACTIONS,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "Add the widget from Settings, or long-press your home screen and open Widgets \u2192 Psyche.",
+            style = MaterialTheme.typography.bodySmall,
+            color = palette.muted,
+        )
+    }
+}
+
+@Composable
+fun QuickTransactionEditorSheet(
+    viewModel: FinanceViewModel,
+    quick: QuickTransaction?,
+    accounts: List<Account>,
+    categories: List<Category>,
+    lastAccountId: Long?,
+    onDismiss: () -> Unit,
+) {
+    val palette = LocalPsychePalette.current
+    val scope = rememberCoroutineScope()
+    var label by rememberSaveable { mutableStateOf(quick?.label ?: "") }
+    var typeName by rememberSaveable {
+        mutableStateOf((quick?.type ?: TransactionType.EXPENSE).name)
+    }
+    var amount by rememberSaveable {
+        mutableStateOf(quick?.amountCents?.let { Money.inputValue(it) } ?: "")
+    }
+    var accountId by rememberSaveable {
+        mutableStateOf(
+            quick?.accountId?.takeIf { id -> accounts.any { it.id == id } }
+                ?: lastAccountId?.takeIf { id -> accounts.any { it.id == id } }
+                ?: accounts.firstOrNull()?.id
+                ?: -1L,
+        )
+    }
+    var categoryId by rememberSaveable {
+        mutableStateOf(
+            quick?.categoryId?.takeIf { id -> categories.any { it.id == id } } ?: 0L,
+        )
+    }
+    var note by rememberSaveable { mutableStateOf(quick?.note ?: "") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+
+    val type = TransactionType.valueOf(typeName)
+    val amountParsed = Money.parse(amount)
+    val account = accounts.firstOrNull { it.id == accountId }
+    val valid = label.isNotBlank() &&
+        label.length <= 24 &&
+        amountParsed != null &&
+        account != null
+
+    SheetFrame(onDismiss = onDismiss) {
+        SheetHeader(
+            eyebrow = if (quick == null) "New preset" else "Preset",
+            title = if (quick == null) "ADD ONE-TAP" else "EDIT ONE-TAP",
+            onClose = onDismiss,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "This becomes a button on the widget. The amount is logged as soon as it is tapped.",
+            style = MaterialTheme.typography.bodySmall,
+            color = palette.muted,
+        )
+        Spacer(Modifier.height(14.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            color = palette.boardRow,
+            border = BorderStroke(1.dp, palette.boardLine),
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                MonoText(
+                    text = "WIDGET BUTTON PREVIEW",
+                    color = palette.faint,
+                    style = PassType.monoMicro.copy(letterSpacing = 1.sp),
                 )
-                Spacer(Modifier.height(10.dp))
-                Row {
-                    MonoText(
-                        text = "LOG EXPENSE",
-                        color = palette.accentText,
-                        style = PassType.monoLabel.copy(letterSpacing = 1.1.sp),
-                    )
-                    Spacer(Modifier.weight(1f))
-                    MonoText(
-                        text = "LOCK SCREEN HIDES THE PASS",
-                        color = palette.faint,
-                        style = PassType.monoMicro.copy(fontSize = 7.sp),
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = label.ifBlank { "Label" },
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (label.isBlank()) palette.faint else palette.onGround,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        MonoText(
+                            text = if (type == TransactionType.EXPENSE) "EXPENSE" else "INCOME",
+                            color = palette.accentText,
+                            style = PassType.monoMicro.copy(fontSize = 7.sp),
+                        )
+                    }
+                    Text(
+                        text = amountParsed?.let { Money.formatPeso(it) } ?: "\u20B10",
+                        style = PassType.monoData.copy(fontSize = 16.sp),
+                        color = if (amountParsed == null) palette.faint else palette.onGround,
                     )
                 }
             }
         }
         Spacer(Modifier.height(14.dp))
-        Text(
-            text = "Android asks for notification permission next. If you decline, the yellow + button still captures, and you can turn the log on later in Settings.",
-            style = MaterialTheme.typography.bodySmall,
-            color = palette.muted,
+        OutlinedTextField(
+            value = label,
+            onValueChange = { label = it.take(24); error = null },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Label", style = MaterialTheme.typography.bodySmall) },
+            placeholder = { Text("Coffee", style = MaterialTheme.typography.bodySmall) },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium,
+            colors = fieldColors(),
         )
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            ChoiceChip(
+                label = "Expense",
+                selected = type == TransactionType.EXPENSE,
+                onClick = { typeName = TransactionType.EXPENSE.name; error = null },
+            )
+            ChoiceChip(
+                label = "Income",
+                selected = type == TransactionType.INCOME,
+                onClick = { typeName = TransactionType.INCOME.name; categoryId = 0L; error = null },
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        MoneyField(
+            label = "Amount",
+            value = amount,
+            onValueChange = { amount = it; error = null },
+            error = if (amount.isNotBlank() && amountParsed == null) "Use a valid amount." else null,
+            supporting = "Logged every time the button is tapped.",
+        )
+        Spacer(Modifier.height(12.dp))
+        MonoText(
+            text = "ACCOUNT",
+            color = palette.faint,
+            style = PassType.monoLabel.copy(letterSpacing = 1.1.sp),
+        )
+        Spacer(Modifier.height(6.dp))
+        if (accounts.isEmpty()) {
+            Text(
+                text = "Add a cash or card account before making a one-tap action.",
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.danger,
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                accounts.forEach { option ->
+                    ChoiceChip(
+                        label = option.name,
+                        selected = option.id == accountId,
+                        onClick = { accountId = option.id; error = null },
+                    )
+                }
+            }
+        }
+        if (type == TransactionType.EXPENSE) {
+            Spacer(Modifier.height(12.dp))
+            MonoText(
+                text = "CATEGORY",
+                color = palette.faint,
+                style = PassType.monoLabel.copy(letterSpacing = 1.1.sp),
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                ChoiceChip(
+                    label = "Uncategorized",
+                    selected = categoryId == 0L,
+                    onClick = { categoryId = 0L; error = null },
+                )
+                categories.forEach { option ->
+                    ChoiceChip(
+                        label = option.name,
+                        selected = option.id == categoryId,
+                        onClick = { categoryId = option.id; error = null },
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        NoteField(
+            value = note,
+            onValueChange = { note = it },
+            label = "Description (optional)",
+        )
+        if (error != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = error ?: "",
+                style = PassType.monoDataSmall,
+                color = palette.danger,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
         PrimaryAction(
-            text = "Enable notification log",
-            onClick = onEnable,
+            text = when {
+                saving -> "Saving\u2026"
+                quick == null -> "Add one-tap action"
+                else -> "Save one-tap action"
+            },
+            onClick = {
+                if (!valid) {
+                    error = "Check the label, amount, and account."
+                    return@PrimaryAction
+                }
+                val cents = requireNotNull(amountParsed) { "Amount is required." }
+                val selectedAccount = requireNotNull(account) { "Account is required." }
+                saving = true
+                error = null
+                scope.launch {
+                    val result = if (quick == null) {
+                        viewModel.createQuickTransaction(
+                            label = label,
+                            type = type,
+                            amountCents = cents,
+                            accountId = selectedAccount.id,
+                            categoryId = categoryId.takeIf {
+                                type == TransactionType.EXPENSE && it > 0
+                            },
+                            note = note,
+                        )
+                    } else {
+                        viewModel.updateQuickTransaction(
+                            quick.copy(
+                                label = label,
+                                type = type,
+                                amountCents = cents,
+                                accountId = selectedAccount.id,
+                                categoryId = categoryId.takeIf {
+                                    type == TransactionType.EXPENSE && it > 0
+                                },
+                                note = note,
+                            ),
+                        )
+                    }
+                    result.onSuccess { onDismiss() }
+                        .onFailure { error = it.message ?: "Couldn't save the one-tap action." }
+                    saving = false
+                }
+            },
+            enabled = !saving && valid,
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.height(4.dp))
-        QuietAction(
-            text = "Not now",
-            onClick = onDismiss,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
+        if (quick != null) {
+            Spacer(Modifier.height(10.dp))
+            Hairline(color = palette.boardLine)
+            if (quick.archived) {
+                SecondaryAction(
+                    text = "Restore action",
+                    onClick = {
+                        scope.launch {
+                            viewModel.restoreQuickTransaction(quick).onSuccess { onDismiss() }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                DangerAction(
+                    text = "Archive action",
+                    onClick = {
+                        scope.launch {
+                            viewModel.archiveQuickTransaction(quick).onSuccess { onDismiss() }
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+                MonoText(
+                    text = "Archiving removes the button from the widget. Past entries stay.",
+                    color = palette.faint,
+                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                )
+            }
+        }
     }
 }
 

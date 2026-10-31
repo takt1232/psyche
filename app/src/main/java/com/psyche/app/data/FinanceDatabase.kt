@@ -15,9 +15,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         BudgetEntity::class,
         AllocationEntity::class,
         GoalEntity::class,
+        QuickTransactionEntity::class,
         SettingEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class FinanceDatabase : RoomDatabase() {
@@ -67,13 +68,43 @@ abstract class FinanceDatabase : RoomDatabase() {
             }
         }
 
+        private val migration2To3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `quick_transactions` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `label` TEXT NOT NULL,
+                        `type` TEXT NOT NULL,
+                        `amountCents` INTEGER NOT NULL,
+                        `accountId` INTEGER NOT NULL,
+                        `categoryId` INTEGER,
+                        `note` TEXT NOT NULL,
+                        `sortOrder` INTEGER NOT NULL,
+                        `archived` INTEGER NOT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    DELETE FROM app_settings
+                    WHERE key IN (
+                        'notifications_enabled',
+                        'show_amount_on_lock_screen',
+                        'notification_prompt_seen'
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
         fun build(context: Context): FinanceDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 FinanceDatabase::class.java,
                 "psyche-finance.db",
             )
-                .addMigrations(migration1To2)
+                .addMigrations(migration1To2, migration2To3)
                 .addCallback(feedDefaultAccount)
                 .build()
     }

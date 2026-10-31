@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
     <application
         android:name=".PsycheApplication"
         android:allowBackup="false"
@@ -23,12 +21,24 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".CaptureActivity"
+        <receiver
+            android:name=".widget.QuickTransactionWidget"
             android:exported="false"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTop"
-            android:theme="@style/Theme.Psyche.Capture" />
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="com.psyche.app.action.REFRESH_WIDGET" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_transaction_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.QuickActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.psyche.app.data.MAX_QUICK_ACTIONS
 import com.psyche.app.ui.MonthView
 import com.psyche.app.ui.theme.LocalPsychePalette
 import com.psyche.app.ui.theme.PassType
@@ -43,7 +44,7 @@ import java.util.Locale
 @Composable
 fun BudgetPassCard(
     view: MonthView?,
-    notificationLogOn: Boolean,
+    quickActionCount: Int,
     onEditCap: () -> Unit,
     onCopyPeriodSummary: () -> Unit,
     modifier: Modifier = Modifier,
@@ -186,7 +187,7 @@ fun BudgetPassCard(
             }
             BarcodeBlock(
                 reference = summary?.periodRef ?: "PSYCHE",
-                notificationOn = notificationLogOn,
+                quickActionCount = quickActionCount,
                 onCopy = onCopyPeriodSummary,
             )
         }
@@ -295,7 +296,7 @@ private fun PassDivider() {
 @Composable
 private fun BarcodeBlock(
     reference: String,
-    notificationOn: Boolean,
+    quickActionCount: Int,
     onCopy: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
@@ -344,16 +345,16 @@ private fun BarcodeBlock(
                             modifier = Modifier
                                 .size(5.dp)
                                 .background(
-                                    if (notificationOn) palette.alert else palette.passLine,
+                                    if (quickActionCount > 0) palette.alert else palette.passLine,
                                     shape = RoundedCornerShape(50),
                                 ),
                         )
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            text = if (notificationOn) {
-                                "NOTIFICATION LOG ON"
+                            text = if (quickActionCount > 0) {
+                                "ONE-TAP $quickActionCount/$MAX_QUICK_ACTIONS"
                             } else {
-                                "NOTIFICATION LOG OFF"
+                                "NO ONE-TAP YET"
                             },
                             style = PassType.monoMicro.copy(letterSpacing = 0.7.sp),
                             color = palette.passMuted,

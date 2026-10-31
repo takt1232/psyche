@@ -84,21 +84,41 @@ data class SavingsGoal(
     val archived: Boolean,
 )
 
+/**
+ * A preset one-tap action. Tapping it logs the stored amount against the stored
+ * account/category immediately, without opening the app.
+ */
+data class QuickTransaction(
+    val id: Long,
+    val label: String,
+    val type: TransactionType,
+    val amountCents: Long,
+    val accountId: Long,
+    val categoryId: Long?,
+    val note: String,
+    val sortOrder: Int,
+    val archived: Boolean,
+)
+
+/** The widget has four buttons; keep the in-app strip aligned with it. */
+const val MAX_QUICK_ACTIONS = 4
+
+data class QuickLogResult(
+    val entryId: Long,
+    val label: String,
+    val amountCents: Long,
+    val type: TransactionType,
+)
+
 data class FinanceSettings(
     val lastAccountId: Long? = null,
     val lastCategoryId: Long? = null,
-    val notificationsEnabled: Boolean = false,
-    val showAmountOnLockScreen: Boolean = false,
-    val notificationPromptSeen: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
 ) {
     companion object {
         fun from(values: Map<String, String>): FinanceSettings = FinanceSettings(
             lastAccountId = values[SettingsKeys.LAST_ACCOUNT_ID]?.toLongOrNull(),
             lastCategoryId = values[SettingsKeys.LAST_CATEGORY_ID]?.toLongOrNull(),
-            notificationsEnabled = values[SettingsKeys.NOTIFICATIONS_ENABLED] == "true",
-            showAmountOnLockScreen = values[SettingsKeys.SHOW_AMOUNT_ON_LOCK_SCREEN] == "true",
-            notificationPromptSeen = values[SettingsKeys.NOTIFICATION_PROMPT_SEEN] == "true",
             themeMode = ThemeMode.fromStorage(values[SettingsKeys.THEME_MODE]),
         )
     }
@@ -107,9 +127,6 @@ data class FinanceSettings(
 object SettingsKeys {
     const val LAST_ACCOUNT_ID = "last_account_id"
     const val LAST_CATEGORY_ID = "last_category_id"
-    const val NOTIFICATIONS_ENABLED = "notifications_enabled"
-    const val SHOW_AMOUNT_ON_LOCK_SCREEN = "show_amount_on_lock_screen"
-    const val NOTIFICATION_PROMPT_SEEN = "notification_prompt_seen"
     const val THEME_MODE = "theme_mode"
 }
 
@@ -120,11 +137,14 @@ data class FinanceSnapshot(
     val budgets: Map<YearMonth, Budget> = emptyMap(),
     val allocations: Map<YearMonth, Map<Long, Long>> = emptyMap(),
     val goals: List<SavingsGoal> = emptyList(),
+    val quickTransactions: List<QuickTransaction> = emptyList(),
     val settings: FinanceSettings = FinanceSettings(),
 ) {
     val activeAccounts: List<Account> get() = accounts.filterNot { it.archived }
     val activeCategories: List<Category> get() = categories.filterNot { it.archived }
     val activeGoals: List<SavingsGoal> get() = goals.filterNot { it.archived }
+    val activeQuickTransactions: List<QuickTransaction>
+        get() = quickTransactions.filterNot { it.archived }
 }
 
 fun AccountEntity.toDomain() = Account(
@@ -176,6 +196,18 @@ fun GoalEntity.toDomain() = SavingsGoal(
     archived = archived,
 )
 
+fun QuickTransactionEntity.toDomain() = QuickTransaction(
+    id = id,
+    label = label,
+    type = TransactionType.fromStorage(type),
+    amountCents = amountCents,
+    accountId = accountId,
+    categoryId = categoryId,
+    note = note,
+    sortOrder = sortOrder,
+    archived = archived,
+)
+
 fun Category.toEntity() = CategoryEntity(
     id = id,
     name = name,
@@ -213,6 +245,18 @@ fun SavingsGoal.toEntity() = GoalEntity(
     id = id,
     name = name,
     targetCents = targetCents,
+    sortOrder = sortOrder,
+    archived = archived,
+)
+
+fun QuickTransaction.toEntity() = QuickTransactionEntity(
+    id = id,
+    label = label,
+    type = type.storage,
+    amountCents = amountCents,
+    accountId = accountId,
+    categoryId = categoryId,
+    note = note,
     sortOrder = sortOrder,
     archived = archived,
 )

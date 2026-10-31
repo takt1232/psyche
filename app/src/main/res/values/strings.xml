@@ -1,7 +1,14 @@
 <resources>
     <string name="app_name">Psyche</string>
-    <string name="notification_channel_name">Budget pass</string>
-    <string name="notification_channel_description">A quiet, ongoing shortcut for logging an expense.</string>
-    <string name="notification_title">Psyche budget pass</string>
-    <string name="notification_action">Log expense</string>
+    <string name="widget_name">Psyche one-tap</string>
+    <string name="widget_description">Remaining budget and four one-tap transactions.</string>
+    <string name="widget_empty">Create one-tap actions in Psyche</string>
+    <string name="widget_header_open">Open Psyche</string>
+    <string name="widget_footer_ready">TAP A BUTTON TO LOG · OPEN PSYCHE</string>
+    <string name="widget_footer_empty">TAP TO OPEN PSYCHE</string>
+    <string name="widget_no_cap">SET CAP</string>
+    <string name="widget_remaining_label">LEFT</string>
+    <string name="widget_over_label">OVER</string>
+    <string name="widget_logged">%1$s · %2$s logged</string>
+    <string name="widget_log_failed">Couldn\'t log that action</string>
 </resources>

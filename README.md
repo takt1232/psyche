@@ -17,14 +17,27 @@ and no analytics or cloud backup.
 - Expenses and transfers are limited to the source account's available cash or card credit.
 - Paying a credit card is a cash/debit transfer capped at the card's outstanding balance.
 - Savings goals funded by transfers from an account.
-- Quick capture from the yellow FAB or an optional ongoing notification.
+- Quick capture from the yellow FAB.
+- A home-screen widget with the remaining budget and up to four custom one-tap buttons.
+- Custom one-tap transactions (label, amount, expense/income, account, category) that log instantly from the widget.
 - Transfers from the FAB capture sheet or the Accounts summary; contributions cannot exceed the goal or the source account's available money.
-- Lock screen hides the pass by default, with a setting to reveal it in the shade.
 - System, light, or dark appearance in Settings; text size follows Android.
 - Activity edit/delete with undo, month switching, filters, and running budget left.
 - Room persistence on the phone.
 
 The old journaling scaffold and in-memory repository have been removed.
+
+## One-tap widget
+
+1. Open **Settings → One-tap actions** and add up to four presets.
+2. Tap **Add widget** there, or long-press the home screen and open
+   **Widgets → Psyche**.
+3. Tap a preset on the widget to log it immediately. The widget reprints the
+   remaining budget; the new entry appears as the lit row when the app opens.
+
+The widget uses the fixed dark Budget Pass palette so it stays legible on any
+wallpaper. Corrections and undo happen in Activity; a widget tap has no undo
+surface of its own.
 
 ## Toolchain
 
@@ -70,8 +83,9 @@ ddmlib sometimes times out waiting for the device even though the APK installs f
 4. Add goals or a credit account later from their tabs.
 
 No amounts are prefilled. The default Cash account starts at ₱0 and cannot be
-archived. The notification prompt appears after the cap is set; declining it
-leaves the FAB as the capture path.
+archived. After setup, create one-tap actions in Settings (or the Home strip),
+then add the Psyche widget from Settings or by long-pressing the home screen.
+Widget taps log immediately; the FAB remains the fallback capture path.
 
 ## Data and privacy
 
@@ -79,15 +93,14 @@ leaves the FAB as the capture path.
 - No `INTERNET` permission.
 - `android:allowBackup="false"` so the ledger is not sent to cloud backup.
 - Uninstalling or clearing app data removes the ledger permanently.
-- The notification is silent and ongoing; its amount is visible in the shade but
-  the pass is hidden from the lock screen unless the setting is enabled.
+- The widget is a launcher surface only. It reads the local Room ledger and logs
+  through a manifest broadcast receiver; it does not add network access.
 
 ## Project structure
 
 ```
 app/src/main/java/com/psyche/app/
 ├── MainActivity.kt
-├── CaptureActivity.kt
 ├── PsycheApplication.kt
 ├── data/
 │   ├── FinanceDatabase.kt
@@ -95,8 +108,10 @@ app/src/main/java/com/psyche/app/
 │   ├── FinanceEntities.kt
 │   ├── FinanceModels.kt
 │   └── FinanceRepository.kt
-├── notifications/
-│   └── BudgetNotifier.kt
+├── widget/
+│   ├── QuickActionReceiver.kt
+│   ├── QuickTransactionWidget.kt
+│   └── QuickWidgetRenderer.kt
 ├── ui/
 │   ├── FinanceUiState.kt
 │   ├── FinanceViewModel.kt
@@ -116,7 +131,8 @@ The visual system is documented in [DESIGN.md](DESIGN.md); the product truth is 
 ## Unit tests
 
 The project has a JUnit 4 / Truth / Turbine / `kotlinx-coroutines-test` test
-classpath. There are no Finance Tracker unit tests committed yet.
+classpath. `FinanceRepositoryQuickTransactionTest` covers one-tap logging, the
+four-slot limit, and the account-archive guard.
 
 ```powershell
 .\gradlew.bat testDebugUnitTest

@@ -149,13 +149,13 @@ components:
 
 The Finance Tracker behaves like a small private terminal: a white boarding pass states what is left this month, and a quiet gate board records what just happened. The pass is the one document lifted off the ground; the board is the working record beneath it. The app should feel issued rather than marketed: precise, local, and slightly mechanical, with the warmth of a personal object.
 
-Dark is the native condition — an ink terminal at night. Light is not an inversion but the same terminal during the day: cool paper ground, white pass, darker amber for text. System theme is the default; Settings can pin Light or Dark without changing the palette. Geometry, type, and hierarchy stay fixed; only the ground/pass relationship changes. Text size follows Android rather than an app-only scale. Material 3 governs navigation, sheets, fields, switches, and feedback so the custom pass/board composition never becomes a novelty control set.
+Dark is the native condition — an ink terminal at night. Light is not an inversion but the same terminal during the day: cool paper ground, white pass, darker amber for text. System theme is the default; Settings can pin Light or Dark without changing the palette. Geometry, type, and hierarchy stay fixed; only the ground/pass relationship changes. Text size follows Android rather than an app-only scale. Material 3 governs navigation, sheets, fields, and feedback so the custom pass/board composition never becomes a novelty control set.
 
-The interface is dense but never cramped. Every label is short enough to scan from the notification shade, every amount is tabular, and every state has a plain-language name. No dashboard cards, no gradient hero, no invented financial data.
+The interface is dense but never cramped. Every label is short enough to scan at a glance, every amount is tabular, and every state has a plain-language name. No dashboard cards, no gradient hero, no invented financial data.
 
 **Key Characteristics:**
 - One white pass over a flat board; the pass is the only surface allowed a resting shadow.
-- Amber is attention, not decoration: lit row, FAB, selected controls, and the notification dot.
+- Amber is attention, not decoration: lit row, FAB, selected controls, the one-tap status dot, and widget action amounts.
 - Condensed display numerals, plain body text, and mono labels in a strict hierarchy.
 - Hairline rules, perforations, notches, and barcode bars instead of ornamental card stacks.
 - Dark-first terminal; daytime paper variant with the same ticket geometry.
@@ -165,7 +165,7 @@ The interface is dense but never cramped. Every label is short enough to scan fr
 
 **The One Lifted Surface Rule.** The pass may lift; the board stays flat. Sheets and the capture overlay may lift because they interrupt the surface, not because every container needs a shadow.
 
-**The Amber Means Attention Rule.** Alert yellow is reserved for the lit new row, the FAB, selected navigation and controls, progress fills, and the pass's notification dot. It is never body copy or a large decorative field.
+**The Amber Means Attention Rule.** Alert yellow is reserved for the lit new row, the FAB, selected navigation and controls, progress fills, the pass's one-tap status dot, and the widget's brand and action amounts. It is never body copy or a large decorative field.
 
 **The Honest Numbers Rule.** Never prefill a balance, cap, or category amount. Empty states say what to do; they do not demonstrate with fake money.
 
@@ -174,7 +174,7 @@ The interface is dense but never cramped. Every label is short enough to scan fr
 The palette is a two-condition terminal: ink and paper, with one signal yellow and a small set of danger/muted neutrals. It is intentionally fixed; dynamic color is off.
 
 ### Primary
-- **Alert Amber** (`alert`): the signal color. Used for the FAB, selected filter chips, active navigation, row highlight, progress fills, and the pass's small notification dot. On light grounds, use the darker amber text token (`alert-ink`) for words and icons rather than the bright fill color.
+- **Alert Amber** (`alert`): the signal color. Used for the FAB, selected filter chips, active navigation, row highlight, progress fills, the pass's small one-tap status dot, and the widget's brand/action amounts. On light grounds, use the darker amber text token (`alert-ink`) for words and icons rather than the bright fill color.
 - **Signal Ink** (`ink`): the foreground on the pass and on amber. Also the light-theme ground text. It is near-black, not pure black, so the white pass has a slight material contrast.
 
 ### Secondary
@@ -280,10 +280,11 @@ Barcode bars are a functional reference, not a decorative pattern: each bar is d
 - **Behavior:** System Back from a non-Home tab returns Home; back from Home exits. Sheets and the capture overlay own their back dismissal. Predictive Back is enabled at the activity level.
 
 ### Signature Components
-- **Budget Pass:** a white ticket with a top strip (BUDGET PASS + sequence), month/days header, auto-sized remaining amount, “LEFT/OVER BY — OF CAP — % LEFT” side stack, a three-segment week/daily/status row, and a functional barcode footer with notification state. The empty version says “SET YOUR CAP” without numbers.
+- **Budget Pass:** a white ticket with a top strip (BUDGET PASS + sequence), month/days header, auto-sized remaining amount, “LEFT/OVER BY — OF CAP — % LEFT” side stack, a three-segment week/daily/status row, and a functional barcode footer with one-tap status. The empty version says “SET YOUR CAP” without numbers.
 - **Live Activity Board:** four-column table (TIME / DESCRIPTION / AMOUNT / LEFT), newest row amber with a NOW chip, older rows on the night row. The board is the record; it never becomes a stack of cards.
 - **Stamp:** a 2dp-corner mono tag used for FIRST RUN, DEFAULT, TIGHT, OVER, category labels, and flow state. Outlined by default; filled only when the state is the amber attention state.
-- **Top Feedback Banner:** a floating notification-like strip at the top of the app, with a slide/fade entrance, amber check tile, mono NOTICE label, message, and optional text action. It appears above app content and carries save, permission, copy, and undo confirmations. It is distinct from Android's ongoing pass notification.
+- **Top Feedback Banner:** a floating in-app notice strip at the top of the app, with a slide/fade entrance, amber check tile, mono NOTICE label, message, and optional text action. It appears above app content and carries save, copy, one-tap, and undo confirmations.
+- **One-tap Widget:** a fixed dark 4×3 board with PSYCHE · ONE-TAP, the remaining amount, the month/status line, and four preset buttons in a 2×2 grid. Amber is limited to the brand and the button amounts; the remaining amount is white on plan and danger red when over; labels stay white.
 
 ## Do's and Don'ts
 
@@ -294,7 +295,7 @@ Barcode bars are a functional reference, not a decorative pattern: each bar is d
 - **Do** show “SET YOUR CAP” with no fabricated values until the owner sets a cap.
 - **Do** auto-size the pass amount and allow long board descriptions to ellipsize.
 - **Do** keep every primary action at 48dp or more and every sheet scrollable above the IME.
-- **Do** describe over-budget as a positive “over by” amount in tables and notifications; keep the negative sign only where the ledger's running left truly goes below zero.
+- **Do** describe over-budget as a positive “over by” amount in tables and the widget; keep the negative sign only where the ledger's running left truly goes below zero.
 
 ### Don't:
 - **Don't** turn rows or feature areas into nested cards or icon+heading+text tiles.

@@ -73,7 +73,6 @@ import kotlinx.coroutines.launch
 fun CaptureContent(
     viewModel: FinanceViewModel,
     state: FinanceUiState,
-    fromNotification: Boolean,
     onDismiss: () -> Unit,
     onTransfer: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -260,7 +259,7 @@ fun CaptureContent(
                 )
             } else {
                 SheetHeader(
-                    eyebrow = if (fromNotification) "FROM THE SHADE" else "QUICK CAPTURE",
+                    eyebrow = "QUICK CAPTURE",
                     title = if (type == CaptureType.EXPENSE) "LOG EXPENSE" else "LOG INCOME",
                     onClose = onDismiss,
                 )
@@ -272,7 +271,7 @@ fun CaptureContent(
                         error = null
                     },
                 )
-                if (!fromNotification && onTransfer != null && accounts.size >= 2) {
+                if (onTransfer != null && accounts.size >= 2) {
                     Spacer(Modifier.height(8.dp))
                     SecondaryAction(
                         text = "Move money between accounts",

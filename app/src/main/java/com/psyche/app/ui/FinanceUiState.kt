@@ -4,6 +4,7 @@ import com.psyche.app.data.Category
 import com.psyche.app.data.FinanceSettings
 import com.psyche.app.data.FinanceSnapshot
 import com.psyche.app.data.LedgerEntry
+import com.psyche.app.data.QuickTransaction
 import com.psyche.app.util.AccountBalance
 import com.psyche.app.util.ActivityRow
 import com.psyche.app.util.BudgetMath
@@ -49,6 +50,7 @@ data class FinanceUiState(
     val needsSetup: Boolean
         get() = home != null && (home.capCents == null || snapshot.activeAccounts.isEmpty())
     val activeCategories: List<Category> get() = snapshot.activeCategories
+    val quickTransactions: List<QuickTransaction> get() = snapshot.activeQuickTransactions
 }
 
 object FinanceStateBuilder {

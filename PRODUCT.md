@@ -24,7 +24,7 @@ Used by the owner on their Android phone as a personal, everyday tool. The first
 
 ## Capabilities and Constraints
 
-- Current build: Android app (Kotlin, Jetpack Compose, Material 3) with the Finance Tracker as its first module. It includes a monthly budget pass, activity ledger, category allocations, cash/debit/credit accounts, savings goals, quick capture, and an optional ongoing notification. The old journaling scaffold has been removed.
+- Current build: Android app (Kotlin, Jetpack Compose, Material 3) with the Finance Tracker as its first module. It includes a monthly budget pass, activity ledger, category allocations, cash/debit/credit accounts, savings goals, quick capture, and a home-screen widget with custom one-tap transactions. The old journaling scaffold has been removed.
 - Persistence is a local Room database on the phone. The app has no network permission, analytics, cloud backup, or account system.
 - Confirmed product areas: Finance Tracker (current focus), jobs, hobbies, and a job-related DTR module (deferred). XP and levels are the confirmed gaming mechanic across the product.
 - Finance Tracker scope: income and expenses; monthly budgets and categories; accounts and balances; savings goals; cards such as ATM/debit/credit cards as part of accounts. The working defaults are PHP, en-PH, 12-hour time, and a monthly spending cap.

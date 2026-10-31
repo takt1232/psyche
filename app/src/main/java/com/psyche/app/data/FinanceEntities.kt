@@ -71,6 +71,19 @@ data class GoalEntity(
     val archived: Boolean,
 )
 
+@Entity(tableName = "quick_transactions")
+data class QuickTransactionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val label: String,
+    val type: String,
+    val amountCents: Long,
+    val accountId: Long,
+    val categoryId: Long?,
+    val note: String,
+    val sortOrder: Int,
+    val archived: Boolean,
+)
+
 @Entity(tableName = "app_settings")
 data class SettingEntity(
     @PrimaryKey val key: String,

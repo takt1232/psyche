@@ -1,10 +1,9 @@
 package com.psyche.app.ui
 
-import android.Manifest
+import android.appwidget.AppWidgetManager
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
-import android.content.pm.PackageManager
+import android.content.ComponentName
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -23,7 +22,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -34,15 +32,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.psyche.app.R
 import com.psyche.app.data.Account
-import com.psyche.app.data.Category
+import com.psyche.app.data.QuickTransaction
 import com.psyche.app.data.SavingsGoal
-import com.psyche.app.notifications.BudgetNotifier
 import com.psyche.app.ui.capture.CaptureContent
 import com.psyche.app.ui.components.PsycheBottomBar
 import com.psyche.app.ui.components.TopFeedbackBanner
@@ -57,7 +53,8 @@ import com.psyche.app.ui.sheets.CategoriesSheet
 import com.psyche.app.ui.sheets.ContributionSheet
 import com.psyche.app.ui.sheets.EntryDetailSheet
 import com.psyche.app.ui.sheets.GoalEditorSheet
-import com.psyche.app.ui.sheets.NotificationIntroSheet
+import com.psyche.app.ui.sheets.QuickTransactionEditorSheet
+import com.psyche.app.ui.sheets.QuickTransactionsSheet
 import com.psyche.app.ui.sheets.SettingsSheet
 import com.psyche.app.ui.sheets.SetupSheet
 import com.psyche.app.ui.sheets.TransferSheet
@@ -65,6 +62,8 @@ import com.psyche.app.ui.theme.LocalPsychePalette
 import com.psyche.app.util.ActivityRow
 import com.psyche.app.util.BudgetMath
 import com.psyche.app.util.GoalProgress
+import com.psyche.app.widget.QuickTransactionWidget
+import com.psyche.app.widget.QuickWidgetRenderer
 import java.time.YearMonth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -81,14 +80,14 @@ private sealed interface Overlay {
     data class GoalEditor(val goalId: Long?) : Overlay
     data class Contribution(val goalId: Long) : Overlay
     data class Entry(val row: ActivityRow) : Overlay
+    data object QuickActions : Overlay
+    data class QuickEditor(val quickId: Long?) : Overlay
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PsycheApp(
     viewModel: FinanceViewModel,
-    onRequestNotificationPermission: () -> Unit,
-    onOpenNotificationSettings: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val palette = LocalPsychePalette.current
@@ -100,33 +99,11 @@ fun PsycheApp(
     var tabName by rememberSaveable { mutableStateOf(MainTab.HOME.name) }
     val tab = MainTab.valueOf(tabName)
     var overlay by remember { mutableStateOf<Overlay?>(null) }
-    var introDismissed by rememberSaveable { mutableStateOf(false) }
-    var lifecycleTick by remember { mutableIntStateOf(0) }
-    val notificationsAllowed = remember(context, state.settings.notificationsEnabled, lifecycleTick) {
-        val permission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS,
-            ) == PackageManager.PERMISSION_GRANTED
-        val notificationManager = androidx.core.app.NotificationManagerCompat.from(context)
-        val systemEnabled = notificationManager.areNotificationsEnabled()
-        val channel = notificationManager.getNotificationChannel(BudgetNotifier.CHANNEL_ID)
-        val channelEnabled = channel == null || channel.importance != android.app.NotificationManager.IMPORTANCE_NONE
-        permission && systemEnabled && channelEnabled
-    }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        lifecycleTick += 1
         viewModel.refreshToday()
+        scope.launch { runCatching { QuickWidgetRenderer.updateAll(context) } }
     }
-
-    val showNotificationIntro = !state.isLoading &&
-        !state.settings.notificationPromptSeen &&
-        !state.settings.notificationsEnabled &&
-        !state.needsSetup &&
-        state.snapshot.activeAccounts.isNotEmpty() &&
-        overlay == null &&
-        !introDismissed
 
     fun copySummary() {
         val summary = state.home?.summary ?: return
@@ -138,6 +115,31 @@ fun PsycheApp(
             ),
         )
         viewModel.notify("Period summary copied")
+    }
+
+    fun addWidget() {
+        val manager = AppWidgetManager.getInstance(context)
+        val requested = if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            manager.isRequestPinAppWidgetSupported
+        ) {
+            runCatching {
+                manager.requestPinAppWidget(
+                    ComponentName(context, QuickTransactionWidget::class.java),
+                    null,
+                    null,
+                )
+            }.getOrDefault(false)
+        } else {
+            false
+        }
+        viewModel.notify(
+            if (requested) {
+                "Confirm the widget on your home screen"
+            } else {
+                "Long-press your home screen \u2192 Widgets \u2192 Psyche"
+            },
+        )
     }
 
     LaunchedEffect(viewModel) {
@@ -160,7 +162,7 @@ fun PsycheApp(
         if (activeFeedback == current) activeFeedback = null
     }
 
-    BackHandler(enabled = tab != MainTab.HOME && overlay == null && !showNotificationIntro) {
+    BackHandler(enabled = tab != MainTab.HOME && overlay == null) {
         tabName = MainTab.HOME.name
     }
 
@@ -216,7 +218,8 @@ fun PsycheApp(
             when (tab) {
             MainTab.HOME -> HomeScreen(
                 state = state,
-                notificationLogOn = state.settings.notificationsEnabled && notificationsAllowed,
+                onRunQuick = viewModel::runQuickTransactionFromUi,
+                onManageQuick = { overlay = Overlay.QuickActions },
                 onCapture = { overlay = Overlay.Capture },
                 onSettings = { overlay = Overlay.Settings },
                 onOpenEntry = { overlay = Overlay.Entry(it) },
@@ -285,7 +288,6 @@ fun PsycheApp(
                 CaptureContent(
                     viewModel = viewModel,
                     state = state,
-                    fromNotification = false,
                     onDismiss = { overlay = null },
                     onTransfer = { overlay = Overlay.Transfer },
                 )
@@ -295,12 +297,39 @@ fun PsycheApp(
         Overlay.Settings -> SettingsSheet(
             viewModel = viewModel,
             state = state,
-            notificationPermissionGranted = notificationsAllowed,
             onCopySummary = ::copySummary,
-            onEnableNotifications = onRequestNotificationPermission,
-            onOpenNotificationSettings = onOpenNotificationSettings,
+            onManageQuickActions = { overlay = Overlay.QuickActions },
+            onAddWidget = ::addWidget,
             onDismiss = { overlay = null },
         )
+
+        Overlay.QuickActions -> QuickTransactionsSheet(
+            viewModel = viewModel,
+            quickTransactions = state.snapshot.quickTransactions,
+            accounts = state.snapshot.activeAccounts,
+            categories = state.snapshot.activeCategories,
+            onAdd = { overlay = Overlay.QuickEditor(null) },
+            onEdit = { overlay = Overlay.QuickEditor(it.id) },
+            onDismiss = { overlay = null },
+        )
+
+        is Overlay.QuickEditor -> {
+            val quick: QuickTransaction? = current.quickId?.let { id ->
+                state.snapshot.quickTransactions.firstOrNull { it.id == id }
+            }
+            if (current.quickId != null && quick == null) {
+                overlay = Overlay.QuickActions
+            } else {
+                QuickTransactionEditorSheet(
+                    viewModel = viewModel,
+                    quick = quick,
+                    accounts = state.snapshot.activeAccounts,
+                    categories = state.snapshot.activeCategories,
+                    lastAccountId = state.settings.lastAccountId,
+                    onDismiss = { overlay = Overlay.QuickActions },
+                )
+            }
+        }
 
         Overlay.Setup -> SetupSheet(
             viewModel = viewModel,
@@ -405,16 +434,6 @@ fun PsycheApp(
         )
 
         null -> Unit
-    }
-
-    if (showNotificationIntro) {
-        NotificationIntroSheet(
-            onEnable = onRequestNotificationPermission,
-            onDismiss = {
-                introDismissed = true
-                viewModel.markNotificationPromptSeen()
-            },
-        )
     }
 
     TopFeedbackBanner(
