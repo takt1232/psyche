@@ -63,11 +63,30 @@ platform package rather than a plain `android-37`.
 
 ## Build and install
 
+Use the build helper from the project root:
+
 ```powershell
-.\gradlew.bat :app:assembleDebug
-adb install -r app\build\outputs\apk\debug\app-debug.apk
+.\build.cmd -Build      # build the debug APK only
+.\build.cmd -Install    # build and install on the connected phone
+```
+
+`-b` and `-i` are short aliases. `-Install` builds first, then installs
+`app\build\outputs\apk\debug\app-debug.apk` with `adb install -r`; it does not
+launch the app. Open the app yourself, or run:
+
+```powershell
 adb shell am start -n com.psyche.app/.MainActivity
 ```
+
+If more than one device is connected, pass `-Serial <id>` (from `adb devices`):
+
+```powershell
+.\build.cmd -Install -Serial 192.168.1.50:41234
+```
+
+The build helper checks `JAVA_HOME`, fails on a Gradle or `adb` error, and prints
+the APK path and size after a successful build. `build.cmd` is a wrapper around
+`build.ps1`, so it works from `cmd.exe`, PowerShell, or by double-clicking.
 
 `adb install -r` preserves the Room database. To exercise the true first-run
 experience (empty pass, “Set your cap”), clear app storage first:
@@ -160,23 +179,14 @@ adb devices -l
 The connect port changes when the screen locks or Wi-Fi reconnects. Re-read it
 from the Wireless debugging screen, or run `adb mdns services`.
 
-Helper script:
+Once `adb devices -l` lists the phone, build and install with:
 
 ```powershell
-.\dev.cmd connect 192.168.1.50:41234
-.\dev.cmd devices
-.\dev.cmd test
-.\dev.cmd deploy
-.\dev.cmd logcat
+.\build.cmd -Install
 ```
 
-Use `dev.cmd`, not `dev.ps1`: from `cmd.exe` (or by double-clicking), a `.ps1`
-file is handed to the file association and opens in an editor instead of running.
-If you prefer PowerShell directly:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\dev.ps1 deploy
-```
+Run unit tests with `.\gradlew.bat testDebugUnitTest`; follow logs with
+`adb logcat`.
 
 ## Notes
 
