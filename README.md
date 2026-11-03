@@ -36,8 +36,12 @@ The old journaling scaffold and in-memory repository have been removed.
    remaining budget; the new entry appears as the lit row when the app opens.
 
 The widget uses the fixed dark Budget Pass palette so it stays legible on any
-wallpaper. Corrections and undo happen in Activity; a widget tap has no undo
-surface of its own.
+wallpaper. An expense preset the source account cannot cover is marked **LOW**
+and turns danger-red; tapping it reports the exact shortfall instead of logging.
+The repository still refuses the overdraw as the final guard. Credit presets
+check available credit rather than cash, and income presets have no balance
+check. Corrections and undo happen in Activity; a widget tap has no undo surface
+of its own.
 
 ## Toolchain
 

@@ -6,6 +6,7 @@
     <string name="widget_header_open">Open Psyche</string>
     <string name="widget_footer_ready">TAP A BUTTON TO LOG · OPEN PSYCHE</string>
     <string name="widget_footer_empty">TAP TO OPEN PSYCHE</string>
+    <string name="widget_footer_low">LOW BALANCE · TAP A RED BUTTON TO SEE WHY</string>
     <string name="widget_no_cap">SET CAP</string>
     <string name="widget_remaining_label">LEFT</string>
     <string name="widget_over_label">OVER</string>

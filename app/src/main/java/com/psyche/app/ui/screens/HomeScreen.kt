@@ -113,6 +113,7 @@ fun HomeScreen(
                     Spacer(Modifier.height(22.dp))
                     OneTapSection(
                         quickTransactions = state.quickTransactions,
+                        balances = state.accountBalances,
                         onRun = onRunQuick,
                         onManage = onManageQuick,
                     )
@@ -280,10 +281,12 @@ private fun QuietSetupAction(
 @Composable
 private fun OneTapSection(
     quickTransactions: List<QuickTransaction>,
+    balances: List<AccountBalance>,
     onRun: (QuickTransaction) -> Unit,
     onManage: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
+    val balancesById = balances.associateBy { it.account.id }
     Column(Modifier.fillMaxWidth()) {
         SectionHeading(
             title = "One-tap",
@@ -334,7 +337,14 @@ private fun OneTapSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 quickTransactions.take(4).forEach { quick ->
-                    QuickActionCard(quick = quick, onRun = { onRun(quick) })
+                    val available = balancesById[quick.accountId]?.availableToMoveCents ?: 0L
+                    val insufficient = quick.type == TransactionType.EXPENSE &&
+                        quick.amountCents > available
+                    QuickActionCard(
+                        quick = quick,
+                        insufficient = insufficient,
+                        onRun = { onRun(quick) },
+                    )
                 }
             }
         }
@@ -344,6 +354,7 @@ private fun OneTapSection(
 @Composable
 private fun QuickActionCard(
     quick: QuickTransaction,
+    insufficient: Boolean,
     onRun: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
@@ -352,7 +363,10 @@ private fun QuickActionCard(
         modifier = Modifier.width(152.dp),
         shape = RoundedCornerShape(10.dp),
         color = palette.boardRow,
-        border = BorderStroke(1.dp, palette.boardLine),
+        border = BorderStroke(
+            1.dp,
+            if (insufficient) palette.danger.copy(alpha = 0.65f) else palette.boardLine,
+        ),
     ) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -363,8 +377,8 @@ private fun QuickActionCard(
                 )
                 Spacer(Modifier.weight(1f))
                 MonoText(
-                    text = "TAP",
-                    color = palette.faint,
+                    text = if (insufficient) "LOW" else "TAP",
+                    color = if (insufficient) palette.danger else palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp),
                 )
             }
@@ -372,7 +386,7 @@ private fun QuickActionCard(
             Text(
                 text = quick.label,
                 style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-                color = palette.onGround,
+                color = if (insufficient) palette.danger else palette.onGround,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -380,7 +394,7 @@ private fun QuickActionCard(
             Text(
                 text = Money.formatPeso(quick.amountCents),
                 style = PassType.monoData.copy(fontSize = 15.sp),
-                color = palette.onGround,
+                color = if (insufficient) palette.danger else palette.onGround,
                 maxLines = 1,
             )
         }

@@ -284,7 +284,7 @@ Barcode bars are a functional reference, not a decorative pattern: each bar is d
 - **Live Activity Board:** four-column table (TIME / DESCRIPTION / AMOUNT / LEFT), newest row amber with a NOW chip, older rows on the night row. The board is the record; it never becomes a stack of cards.
 - **Stamp:** a 2dp-corner mono tag used for FIRST RUN, DEFAULT, TIGHT, OVER, category labels, and flow state. Outlined by default; filled only when the state is the amber attention state.
 - **Top Feedback Banner:** a floating in-app notice strip at the top of the app, with a slide/fade entrance, amber check tile, mono NOTICE label, message, and optional text action. It appears above app content and carries save, copy, one-tap, and undo confirmations.
-- **One-tap Widget:** a fixed dark 4×3 board with PSYCHE · ONE-TAP, the remaining amount, the month/status line, and four preset buttons in a 2×2 grid. Amber is limited to the brand and the button amounts; the remaining amount is white on plan and danger red when over; labels stay white.
+- **One-tap Widget:** a fixed dark 4×3 board with PSYCHE · ONE-TAP, the remaining amount, the month/status line, and four preset buttons in a 2×2 grid. Amber is limited to the brand and the button amounts; the remaining amount is white on plan and danger red when over; labels stay white. A preset the source account cannot cover gets a danger-red panel, label, amount, and a footer warning; the tap explains the shortfall instead of logging.
 
 ## Do's and Don'ts
 

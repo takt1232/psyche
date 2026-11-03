@@ -11,4 +11,6 @@
     <color name="widget_alert">#FFD400</color>
     <color name="widget_on_alert">#0B0D10</color>
     <color name="widget_danger">#FFB4AB</color>
+    <color name="widget_danger_panel">#2A1518</color>
+    <color name="widget_danger_line">#8C3A3A</color>
 </resources>

@@ -80,6 +80,33 @@ class FinanceRepositoryQuickTransactionTest {
     }
 
     @Test
+    fun `run quick transaction refuses to overdraw the source account`() = runTest {
+        val quick = QuickTransactionEntity(
+            id = 7,
+            label = "Coffee",
+            type = "expense",
+            amountCents = 15_000,
+            accountId = 1,
+            categoryId = null,
+            note = "",
+            sortOrder = 0,
+            archived = false,
+        )
+        val repository = repository(
+            accounts = listOf(cash.copy(openingBalanceCents = 1_000)),
+            quick = listOf(quick),
+        )
+
+        val error = runCatching {
+            repository.runQuickTransaction(7)
+        }.exceptionOrNull()
+
+        assertThat(error).isInstanceOf(IllegalArgumentException::class.java)
+        assertThat(error).hasMessageThat().contains("Only")
+        coVerify(exactly = 0) { dao.insertLightingEntry(any()) }
+    }
+
+    @Test
     fun `a fifth active action is rejected`() = runTest {
         val active = (1..4).map { index ->
             QuickTransactionEntity(

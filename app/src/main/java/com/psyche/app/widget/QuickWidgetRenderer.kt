@@ -17,6 +17,7 @@ import com.psyche.app.data.TransactionType
 import com.psyche.app.util.BudgetMath
 import com.psyche.app.util.BudgetStatus
 import com.psyche.app.util.Formats
+import com.psyche.app.util.LedgerMath
 import com.psyche.app.util.Money
 import java.time.LocalDate
 import java.time.YearMonth
@@ -105,6 +106,13 @@ object QuickWidgetRenderer {
         val actions = snapshot.activeQuickTransactions
             .filter { it.accountId in activeAccountIds }
             .take(MAX_QUICK_ACTIONS)
+        val balances = LedgerMath.accountBalances(snapshot.accounts, snapshot.entries)
+            .associateBy { it.account.id }
+        val lowById = actions.associate { quick ->
+            val available = balances[quick.accountId]?.availableToMoveCents ?: 0L
+            quick.id to (quick.type == TransactionType.EXPENSE && quick.amountCents > available)
+        }
+        val anyLow = lowById.values.any { it }
 
         views.setViewVisibility(
             R.id.widget_grid,
@@ -117,8 +125,16 @@ object QuickWidgetRenderer {
         views.setTextViewText(
             R.id.widget_footer,
             context.getString(
-                if (actions.isEmpty()) R.string.widget_footer_empty else R.string.widget_footer_ready,
+                when {
+                    actions.isEmpty() -> R.string.widget_footer_empty
+                    anyLow -> R.string.widget_footer_low
+                    else -> R.string.widget_footer_ready
+                },
             ),
+        )
+        views.setTextColor(
+            R.id.widget_footer,
+            context.getColor(if (anyLow) R.color.widget_danger else R.color.widget_faint),
         )
         views.setOnClickPendingIntent(R.id.widget_footer, openAppPending(context))
         views.setOnClickPendingIntent(R.id.widget_empty, openAppPending(context))
@@ -129,8 +145,22 @@ object QuickWidgetRenderer {
         )
 
         actions.forEachIndexed { index, quick ->
+            val low = lowById[quick.id] == true
+            val accountName = snapshot.accounts
+                .firstOrNull { it.id == quick.accountId }
+                ?.name
+                ?: "the source account"
             views.setViewVisibility(slotIds[index], View.VISIBLE)
+            views.setInt(
+                slotIds[index],
+                "setBackgroundResource",
+                if (low) R.drawable.bg_widget_action_low else R.drawable.bg_widget_action,
+            )
             views.setTextViewText(labelIds[index], quick.label)
+            views.setTextColor(
+                labelIds[index],
+                context.getColor(if (low) R.color.widget_danger else R.color.widget_ink),
+            )
             views.setTextViewText(
                 amountIds[index],
                 Money.formatPeso(
@@ -140,11 +170,16 @@ object QuickWidgetRenderer {
             )
             views.setTextColor(
                 amountIds[index],
-                context.getColor(R.color.widget_alert),
+                context.getColor(if (low) R.color.widget_danger else R.color.widget_alert),
             )
             views.setContentDescription(
                 slotIds[index],
-                "${quick.label}, ${Money.formatPeso(quick.amountCents)}, tap to log",
+                if (low) {
+                    "${quick.label}, ${Money.formatPeso(quick.amountCents)}, " +
+                        "not enough available in $accountName; tap to see the shortfall"
+                } else {
+                    "${quick.label}, ${Money.formatPeso(quick.amountCents)}, tap to log"
+                },
             )
             views.setOnClickPendingIntent(slotIds[index], quickPending(context, quick.id))
         }
