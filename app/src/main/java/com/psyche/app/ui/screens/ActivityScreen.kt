@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.psyche.app.data.TransactionType
+import com.psyche.app.ui.ActivityMonthView
 import com.psyche.app.ui.FinanceUiState
 import com.psyche.app.ui.components.ActivityBoardRow
 import com.psyche.app.ui.components.ActivityDayHeader
@@ -43,9 +45,9 @@ import com.psyche.app.ui.components.groupByLocalDate
 import com.psyche.app.ui.theme.LocalPsychePalette
 import com.psyche.app.ui.theme.PassType
 import com.psyche.app.util.ActivityRow
-import com.psyche.app.util.BudgetStatus
 import com.psyche.app.util.Formats
 import com.psyche.app.util.Money
+import com.psyche.app.util.PositionSummary
 
 private enum class ActivityFilter(val label: String) {
     ALL("All"),
@@ -76,9 +78,7 @@ fun ActivityScreen(
             ActivityFilter.TRANSFER -> row.entry.type == TransactionType.TRANSFER
         }
     }
-    val subtitle = view?.let {
-        "${Formats.monthShort(it.month)} \u00B7 ${it.summary.statusLabel}"
-    } ?: "ACTIVITY"
+    val subtitle = "NET ${Money.formatPeso(state.position.netCents)}"
 
     Column(
         modifier = Modifier
@@ -116,7 +116,7 @@ fun ActivityScreen(
             }
             item {
                 if (view != null) {
-                    ActivitySummary(view)
+                    ActivitySummary(view = view, position = state.position)
                 }
                 Spacer(Modifier.height(14.dp))
                 Row(
@@ -148,7 +148,7 @@ fun ActivityScreen(
                         },
                         body = when {
                             view == null || view.rows.isEmpty() ->
-                                "Log an expense or income and it joins the board here, with the running budget after each row."
+                                "Log an expense or income and it joins the board here, with the running net after each row."
                             filter != ActivityFilter.ALL ->
                                 "Switch back to All to see the rest of the month."
                             else -> "No entries in this month."
@@ -191,7 +191,7 @@ fun ActivityScreen(
             item {
                 Spacer(Modifier.height(28.dp))
                 MonoText(
-                    text = "RUNNING LEFT IS DERIVED FROM THE SAME LEDGER AS THE PASS. TRANSFERS AND GOAL CONTRIBUTIONS DO NOT COUNT AS EXPENSES.",
+                    text = "RUNNING NET IS THE SAME ACTIVE-ACCOUNT POSITION AS THE PASS. CARD PAYMENTS, TRANSFERS, AND GOAL CONTRIBUTIONS DO NOT CHANGE IT.",
                     color = palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp, letterSpacing = 0.5.sp),
                     maxLines = 3,
@@ -202,7 +202,10 @@ fun ActivityScreen(
 }
 
 @Composable
-private fun ActivitySummary(view: com.psyche.app.ui.MonthView) {
+private fun ActivitySummary(
+    view: ActivityMonthView,
+    position: PositionSummary,
+) {
     val palette = LocalPsychePalette.current
     val summary = view.summary
     Surface(
@@ -226,16 +229,9 @@ private fun ActivitySummary(view: com.psyche.app.ui.MonthView) {
                 )
                 Divider()
                 StatCell(
-                    label = if (summary.status == BudgetStatus.OVER) "OVER BY" else "LEFT",
-                    value = when {
-                        summary.status == BudgetStatus.OVER -> Money.formatPeso(summary.overByCents)
-                        summary.remainingCents != null -> Money.formatPeso(summary.remainingCents)
-                        else -> "\u2014"
-                    },
-                    valueColor = when {
-                        summary.status == BudgetStatus.OVER -> palette.danger
-                        else -> palette.onGround
-                    },
+                    label = "NET CHANGE",
+                    value = Money.formatPeso(summary.changeCents),
+                    valueColor = if (summary.isNegativeChange) palette.danger else palette.onGround,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -244,21 +240,31 @@ private fun ActivitySummary(view: com.psyche.app.ui.MonthView) {
             Spacer(Modifier.height(10.dp))
             Row {
                 MonoText(
-                    text = if (summary.capCents != null) {
-                        "CAP ${Money.formatPeso(summary.capCents)}"
-                    } else {
-                        "NO CAP SET"
-                    },
-                    color = palette.faint,
+                    text = "NET NOW ${Money.formatPeso(position.netCents)}",
+                    color = if (position.isNegative) palette.danger else palette.muted,
                     style = PassType.monoMicro.copy(fontSize = 7.sp),
                 )
                 Spacer(Modifier.weight(1f))
+                MonoText(
+                    text = "OWED ${Money.formatPeso(position.owedCents)}",
+                    color = palette.faint,
+                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Row {
                 MonoText(
                     text = if (summary.updatedAt != null) {
                         "LAST ROW ${Formats.time(summary.updatedAt)}"
                     } else {
                         "NO ROWS"
                     },
+                    color = palette.faint,
+                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                )
+                Spacer(Modifier.weight(1f))
+                MonoText(
+                    text = "${Formats.monthYear(summary.month)}",
                     color = palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp),
                 )
@@ -270,7 +276,7 @@ private fun ActivitySummary(view: com.psyche.app.ui.MonthView) {
 @Composable
 private fun Divider() {
     val palette = LocalPsychePalette.current
-    androidx.compose.foundation.layout.Box(
+    Box(
         modifier = Modifier
             .height(30.dp)
             .width(1.dp)

@@ -7,27 +7,20 @@ import com.psyche.app.data.LedgerEntry
 import com.psyche.app.data.QuickTransaction
 import com.psyche.app.util.AccountBalance
 import com.psyche.app.util.ActivityRow
-import com.psyche.app.util.BudgetMath
-import com.psyche.app.util.CategoryLine
 import com.psyche.app.util.GoalProgress
 import com.psyche.app.util.LedgerMath
+import com.psyche.app.util.MonthMath
 import com.psyche.app.util.MonthSummary
+import com.psyche.app.util.PositionMath
+import com.psyche.app.util.PositionSummary
 import java.time.LocalDate
 import java.time.YearMonth
 
-data class MonthView(
+data class ActivityMonthView(
     val month: YearMonth,
     val summary: MonthSummary,
     val rows: List<ActivityRow>,
-    val categories: List<CategoryLine>,
-    val allocations: Map<Long, Long>,
-    val uncategorizedSpentCents: Long,
-    val previousCapCents: Long?,
 ) {
-    val capCents: Long? get() = summary.capCents
-    val hasCategories: Boolean get() = categories.isNotEmpty()
-    val allocatedCents: Long get() = allocations.values.sum()
-    val unallocatedCents: Long? get() = capCents?.minus(allocatedCents)
     val litRow: ActivityRow? get() = rows.firstOrNull { it.entry.needsAttention }
 }
 
@@ -35,20 +28,18 @@ data class FinanceUiState(
     val isLoading: Boolean = true,
     val snapshot: FinanceSnapshot = FinanceSnapshot(),
     val today: LocalDate = LocalDate.now(),
-    val homeMonth: YearMonth = YearMonth.now(),
-    val home: MonthView? = null,
     val activityMonth: YearMonth = YearMonth.now(),
-    val activity: MonthView? = null,
-    val budgetMonth: YearMonth = YearMonth.now(),
-    val budget: MonthView? = null,
+    val homeActivity: ActivityMonthView? = null,
+    val activity: ActivityMonthView? = null,
+    val position: PositionSummary = PositionSummary.empty(),
     val accountBalances: List<AccountBalance> = emptyList(),
     val goals: List<GoalProgress> = emptyList(),
-    val cashTotalCents: Long = 0,
-    val savingsTotalCents: Long = 0,
 ) {
     val settings: FinanceSettings get() = snapshot.settings
-    val needsSetup: Boolean
-        get() = home != null && (home.capCents == null || snapshot.activeAccounts.isEmpty())
+    val isFirstRun: Boolean
+        get() = snapshot.entries.isEmpty() &&
+            accountBalances.all { it.balanceCents == 0L } &&
+            goals.all { it.savedCents == 0L }
     val activeCategories: List<Category> get() = snapshot.activeCategories
     val quickTransactions: List<QuickTransaction> get() = snapshot.activeQuickTransactions
 }
@@ -58,60 +49,67 @@ object FinanceStateBuilder {
         snapshot: FinanceSnapshot,
         today: LocalDate,
         activityMonth: YearMonth = YearMonth.from(today),
-        budgetMonth: YearMonth = YearMonth.from(today),
     ): FinanceUiState {
         val homeMonth = YearMonth.from(today)
-        val balances = LedgerMath.accountBalances(snapshot.accounts, snapshot.entries)
-            .filterNot { it.account.archived }
+        val balances = LedgerMath.accountBalances(snapshot.activeAccounts, snapshot.entries)
         val goals = LedgerMath.goalProgress(snapshot.activeGoals, snapshot.entries)
+        val activeAccountIds = snapshot.activeAccounts.map { it.id }.toSet()
+        val activeGoalIds = snapshot.activeGoals.map { it.id }.toSet()
         return FinanceUiState(
             isLoading = false,
             snapshot = snapshot,
             today = today,
-            homeMonth = homeMonth,
-            home = monthView(snapshot, homeMonth, today),
             activityMonth = activityMonth,
-            activity = monthView(snapshot, activityMonth, today),
-            budgetMonth = budgetMonth,
-            budget = monthView(snapshot, budgetMonth, today),
+            homeActivity = activityView(
+                snapshot = snapshot,
+                month = homeMonth,
+                today = today,
+                activeAccountIds = activeAccountIds,
+                activeGoalIds = activeGoalIds,
+            ),
+            activity = activityView(
+                snapshot = snapshot,
+                month = activityMonth,
+                today = today,
+                activeAccountIds = activeAccountIds,
+                activeGoalIds = activeGoalIds,
+            ),
+            position = PositionMath.summarize(
+                accounts = snapshot.accounts,
+                goals = snapshot.goals,
+                entries = snapshot.entries,
+                today = today,
+            ),
             accountBalances = balances,
             goals = goals,
-            cashTotalCents = LedgerMath.cashTotal(balances),
-            savingsTotalCents = LedgerMath.savingsTotal(goals),
         )
     }
 
-    private fun monthView(
+    private fun activityView(
         snapshot: FinanceSnapshot,
         month: YearMonth,
         today: LocalDate,
-    ): MonthView {
-        val cap = snapshot.budgets[month]?.capCents
-        val allocations = snapshot.allocations[month].orEmpty()
-        val summary = BudgetMath.summarize(month, cap, snapshot.entries, today)
+        activeAccountIds: Set<Long>,
+        activeGoalIds: Set<Long>,
+    ): ActivityMonthView {
+        val summary = MonthMath.summarize(
+            month = month,
+            entries = snapshot.entries,
+            today = today,
+            activeAccountIds = activeAccountIds,
+            activeGoalIds = activeGoalIds,
+        )
         val rows = LedgerMath.activityRows(
             entries = snapshot.entries,
             month = month,
-            capCents = cap,
             accounts = snapshot.accounts,
             categories = snapshot.categories,
             goals = snapshot.goals,
         )
-        return MonthView(
+        return ActivityMonthView(
             month = month,
             summary = summary,
             rows = rows,
-            categories = LedgerMath.categoryLines(
-                categories = snapshot.categories.filter { category ->
-                    !category.archived || allocations.containsKey(category.id)
-                },
-                entries = snapshot.entries,
-                month = month,
-                allocations = allocations,
-            ),
-            allocations = allocations,
-            uncategorizedSpentCents = LedgerMath.unallocatedSpending(snapshot.entries, month),
-            previousCapCents = snapshot.budgets[month.minusMonths(1)]?.capCents,
         )
     }
 }

@@ -1,6 +1,6 @@
 ---
-name: Psyche Finance Pass
-description: A monthly budget boarding pass over a live gate board, issued locally on one Android phone.
+name: Psyche Balance Pass
+description: A live balance boarding pass over a ledger board, issued locally on one Android phone.
 colors:
   night-ground: "#0B0D10"
   night-row: "#15191E"
@@ -141,13 +141,13 @@ components:
     padding: "10px 12px"
 ---
 
-# Design System: Psyche Finance Pass
+# Design System: Psyche Balance Pass
 
 ## Overview
 
 **Creative North Star: "The Departure Board"**
 
-The Finance Tracker behaves like a small private terminal: a white boarding pass states what is left this month, and a quiet gate board records what just happened. The pass is the one document lifted off the ground; the board is the working record beneath it. The app should feel issued rather than marketed: precise, local, and slightly mechanical, with the warmth of a personal object.
+The Finance Tracker behaves like a small private terminal: a white boarding pass states the owner's net position — money on hand against every card's outstanding balance — and a quiet gate board records what just happened. The pass is the one document lifted off the ground; the board is the working record beneath it. The app should feel issued rather than marketed: precise, local, and slightly mechanical, with the warmth of a personal object.
 
 Dark is the native condition — an ink terminal at night. Light is not an inversion but the same terminal during the day: cool paper ground, white pass, darker amber for text. System theme is the default; Settings can pin Light or Dark without changing the palette. Geometry, type, and hierarchy stay fixed; only the ground/pass relationship changes. Text size follows Android rather than an app-only scale. Material 3 governs navigation, sheets, fields, and feedback so the custom pass/board composition never becomes a novelty control set.
 
@@ -167,7 +167,7 @@ The interface is dense but never cramped. Every label is short enough to scan at
 
 **The Amber Means Attention Rule.** Alert yellow is reserved for the lit new row, the FAB, selected navigation and controls, progress fills, the pass's one-tap status dot, and the widget's brand and action amounts. It is never body copy or a large decorative field.
 
-**The Honest Numbers Rule.** Never prefill a balance, cap, or category amount. Empty states say what to do; they do not demonstrate with fake money.
+**The Honest Numbers Rule.** Never prefill a balance, credit outstanding, or category amount. Empty states say what to do; they do not demonstrate with fake money. A zero is shown as zero, and a negative net keeps its true minus sign.
 
 ## Colors
 
@@ -178,7 +178,7 @@ The palette is a two-condition terminal: ink and paper, with one signal yellow a
 - **Signal Ink** (`ink`): the foreground on the pass and on amber. Also the light-theme ground text. It is near-black, not pure black, so the white pass has a slight material contrast.
 
 ### Secondary
-- **Card Danger** (`danger-night`, `danger-day`): over-budget amounts and destructive warnings. It is a separate semantic channel from amber; never use red for a merely tight budget.
+- **Card Danger** (`danger-night`, `danger-day`): negative net positions, credit outstanding, shortfalls, and destructive warnings. It is a separate semantic channel from amber; never use red for a neutral transfer or a covered card.
 
 ### Neutral
 - **Night Ground** (`night-ground`): the default app background and navigation container.
@@ -210,18 +210,18 @@ The palette is a two-condition terminal: ink and paper, with one signal yellow a
 **Character:** A travel-document voice: condensed numerals carry the emotional weight, Public Sans keeps instructions human, and Roboto Mono makes the ledger feel measured. The mix is utilitarian, not retro for its own sake.
 
 ### Hierarchy
-- **Display** (`display`, 56px/56, bold, −1.2px): the pass amount and receipt-like totals. Auto-size down to keep a single line at 320dp.
+- **Display** (`display`, 56px/56, bold, −1.2px): the net position and receipt-like totals. Auto-size down to keep a single line at 320dp.
 - **Headline** (`headline`, 28px/34, semibold): screen and sheet titles that need a human voice.
 - **Title** (`title`, 19px/25, semibold): row names, section titles, empty-state headings.
 - **Body** (`body`, 14px/20, regular): instructions, notes, settings copy, detail values. Keep measures short on phone.
 - **Label** (`label`, 10px/14, medium, 0.8px): mono labels, table headers, button text, stamps. Uppercase for table/status labels; sentence case for prose labels.
-- **Pass amount** (`pass-amount`, 58px/58, bold): the single remaining/over amount. It is the largest thing in the app by intention.
+- **Pass amount** (`pass-amount`, 58px/58, bold): the single signed net position. It is the largest thing in the app by intention.
 - **Brand** (`brand`, 22px/24, bold, 1.7px): the PSYCHE wordmark only.
 - **Mono micro** (`mono-micro`, 7px/10, regular, 0.7px): ticket labels, metadata, stamps, barcode references. Minimum practical size; do not go smaller.
 
 ### Named Rules
 
-**The Tabular Money Rule.** Every amount column, time column, running balance, and cap uses tabular figures. Money is compared by digit position, never by proportional rhythm.
+**The Tabular Money Rule.** Every amount column, time column, running net, balance, and credit outstanding uses tabular figures. Money is compared by digit position, never by proportional rhythm.
 
 **The One Display Rule.** Only one display-sized number may appear in a viewport. The pass amount wins; entry detail may use a smaller pass amount, but not a second competing hero.
 
@@ -229,7 +229,7 @@ The palette is a two-condition terminal: ink and paper, with one signal yellow a
 
 The phone layout is a single column with 16dp outer gutters. The pass occupies the full content width and stacks above the board; the FAB and bottom navigation sit above the system inset. The home list uses 4dp top and 108dp bottom content padding so the last row clears the FAB and bar.
 
-Use a 4dp micro rhythm, 8dp within tight groups, 12–16dp between groups, and 22–26dp before a new section. Tables use a hairline under each row; do not wrap rows in separate cards. The board is compact below 315dp of content width, tightening time/amount/left columns and truncating descriptions before they can collide.
+Use a 4dp micro rhythm, 8dp within tight groups, 12–16dp between groups, and 22–26dp before a new section. Tables use a hairline under each row; do not wrap rows in separate cards. The board is compact below 315dp of content width, tightening time/amount/net columns and truncating descriptions before they can collide.
 
 At 320dp and 1.3 font scale, preserve the pass first and the board second: the pass amount auto-sizes, labels ellipsize, and horizontal chip rows scroll rather than wrap. Sheets are bottom-anchored, inset-aware, and scroll internally; capture keeps the amount pad and Save reachable above the IME.
 
@@ -248,13 +248,13 @@ Depth is communicated by layering, not by a shadow vocabulary: ground → board 
 
 The form language comes from tickets and printed tables: 16dp clipped corners on the pass, 22dp top corners on sheets, 2dp stamps, hairline rules, and pill progress tracks. Controls use 8–10dp corners so they read as Material rather than paper cutouts. Pills are reserved for progress tracks, tags, and the FAB; cards stay subtly rounded, never floating blobs.
 
-Barcode bars are a functional reference, not a decorative pattern: each bar is derived from the period text and copies the summary when tapped. Perforation lines, notches, and top strips use the same 1dp hairline weight as table rules.
+Barcode bars are a functional reference, not a decorative pattern: each bar is derived from the snapshot reference text and copies the balance summary when tapped. Perforation lines, notches, and top strips use the same 1dp hairline weight as table rules.
 
 ## Components
 
 ### Buttons
 - **Shape:** 10dp radius, minimum 48–52dp height.
-- **Primary:** amber fill with ink text, mono label, 24dp horizontal padding. Used for Save, Create pass, Set cap.
+- **Primary:** amber fill with ink text, mono label, 24dp horizontal padding. Used for Save, Add account, Add card, and Set cash balance.
 - **Secondary:** transparent fill with a 1dp outline and on-ground text, 48dp minimum. Used for Cancel, Delete, transfers, and settings sub-actions.
 - **Quiet / Text:** mono or body text with a 48dp tap region; no filled background. Used for MANAGE, FULL ACTIVITY, and dismissive actions.
 - **Focus / pressed:** Material state layers; the control keeps its shape and text weight. Disabled controls drop to panel-line fill and faint text.
@@ -276,15 +276,15 @@ Barcode bars are a functional reference, not a decorative pattern: each bar is d
 - **Error / Disabled:** danger outline and a mono error line; disabled text uses faint. Amount fields use grouped digits and tabular figures.
 
 ### Navigation
-- **Style:** bottom bar, 66dp content height plus the navigation inset, four destinations. Icons are 21dp, labels are 8px mono uppercase with 1.1px tracking. Selected icon/label uses signal amber on dark and `alert-ink` on light; unselected uses the muted nav token. The FAB is a separate 60dp amber circle above the bar.
+- **Style:** bottom bar, 66dp content height plus the navigation inset, three destinations: Home, Activity, Accounts. Icons are 21dp, labels are 8px mono uppercase with 1.1px tracking. Selected icon/label uses signal amber on dark and `alert-ink` on light; unselected uses the muted nav token. The FAB is a separate 60dp amber circle above the bar.
 - **Behavior:** System Back from a non-Home tab returns Home; back from Home exits. Sheets and the capture overlay own their back dismissal. Predictive Back is enabled at the activity level.
 
 ### Signature Components
-- **Budget Pass:** a white ticket with a top strip (BUDGET PASS + sequence), month/days header, auto-sized remaining amount, “LEFT/OVER BY — OF CAP — % LEFT” side stack, a three-segment week/daily/status row, and a functional barcode footer with one-tap status. The empty version says “SET YOUR CAP” without numbers.
-- **Live Activity Board:** four-column table (TIME / DESCRIPTION / AMOUNT / LEFT), newest row amber with a NOW chip, older rows on the night row. The board is the record; it never becomes a stack of cards.
-- **Stamp:** a 2dp-corner mono tag used for FIRST RUN, DEFAULT, TIGHT, OVER, category labels, and flow state. Outlined by default; filled only when the state is the amber attention state.
+- **Balance Pass:** a white ticket with a top strip (BALANCE PASS + as-of date), an auto-sized signed net position, a “MONEY / OWED” side stack, a debt-coverage bar when cards are owed, a three-segment CASH / SAVED / STATUS row, and a functional barcode footer with one-tap status. Status is DEBT-FREE, CAN SETTLE, SHORT, or NO ACCOUNTS. The empty version shows ₱0 and an Add account action, never a fabricated balance.
+- **Live Activity Board:** four-column table (TIME / DESCRIPTION / AMOUNT / NET), newest row amber with a NOW chip, older rows on the night row. The running net is the active-account position after each row. The board is the record; it never becomes a stack of cards.
+- **Stamp:** a 2dp-corner mono tag used for FIRST RUN, DEFAULT, DEBT-FREE, SHORT, category labels, and flow state. Outlined by default; filled only when the state is the amber attention state.
 - **Top Feedback Banner:** a floating in-app notice strip at the top of the app, with a slide/fade entrance, amber check tile, mono NOTICE label, message, and optional text action. It appears above app content and carries save, copy, one-tap, and undo confirmations.
-- **One-tap Widget:** a fixed dark 4×3 board with PSYCHE · ONE-TAP, the remaining amount, the month/status line, and four preset buttons in a 2×2 grid. Amber is limited to the brand and the button amounts; the remaining amount is white on plan and danger red when over; labels stay white. A preset the source account cannot cover gets a danger-red panel, label, amount, and a footer warning; the tap explains the shortfall instead of logging.
+- **One-tap Widget:** a fixed dark 4×3 board with PSYCHE · ONE-TAP, the signed net position, a MONEY · OWED line, and four preset buttons in a 2×2 grid. Amber is limited to the brand and the button amounts; the net is white when non-negative and danger red when negative; labels stay white. A preset the source account cannot cover gets a danger-red panel, label, amount, and a footer warning; the tap explains the shortfall instead of logging.
 
 ## Do's and Don'ts
 
@@ -292,15 +292,16 @@ Barcode bars are a functional reference, not a decorative pattern: each bar is d
 - **Do** keep the pass as the only lifted document; let the board sit directly on the ground.
 - **Do** use `alert-ink` for amber-like text/icons on light grounds and bright `alert` only as a fill.
 - **Do** preserve tabular figures, uppercase mono table labels, and 1dp hairlines.
-- **Do** show “SET YOUR CAP” with no fabricated values until the owner sets a cap.
+- **Do** show a real signed net position, including a true minus sign when the cards outweigh the money.
 - **Do** auto-size the pass amount and allow long board descriptions to ellipsize.
 - **Do** keep every primary action at 48dp or more and every sheet scrollable above the IME.
-- **Do** describe over-budget as a positive “over by” amount in tables and the widget; keep the negative sign only where the ledger's running left truly goes below zero.
+- **Do** treat card payments and goal contributions as net-neutral transfers; never present them as spending.
+- **Do** show every active account's calculated balance, and mark archived accounts as excluded from totals.
 
 ### Don't:
 - **Don't** turn rows or feature areas into nested cards or icon+heading+text tiles.
 - **Don't** use amber for body copy, large backgrounds, or decoration unrelated to a live state.
-- **Don't** put bright amber text on white or rely on color alone to explain tight/over.
+- **Don't** put bright amber text on white or rely on color alone to explain a negative net or shortfall.
 - **Don't** add a second hero number, gradient text, glass/blur decoration, or arbitrary drop shadows.
-- **Don't** prefill balances, caps, categories, or activity to make the empty state look busy.
+- **Don't** prefill balances, credit outstanding, categories, or activity to make the empty state look busy.
 - **Don't** invent XP, levels, or gaming chrome inside the finance surface; that mechanic is not designed yet.

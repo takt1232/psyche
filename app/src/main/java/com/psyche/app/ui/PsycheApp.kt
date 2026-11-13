@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.psyche.app.R
 import com.psyche.app.data.Account
+import com.psyche.app.data.AccountType
 import com.psyche.app.data.QuickTransaction
 import com.psyche.app.data.SavingsGoal
 import com.psyche.app.ui.capture.CaptureContent
@@ -44,11 +45,8 @@ import com.psyche.app.ui.components.PsycheBottomBar
 import com.psyche.app.ui.components.TopFeedbackBanner
 import com.psyche.app.ui.screens.AccountsScreen
 import com.psyche.app.ui.screens.ActivityScreen
-import com.psyche.app.ui.screens.BudgetsScreen
 import com.psyche.app.ui.screens.HomeScreen
 import com.psyche.app.ui.sheets.AccountEditorSheet
-import com.psyche.app.ui.sheets.AllocationsSheet
-import com.psyche.app.ui.sheets.BudgetEditorSheet
 import com.psyche.app.ui.sheets.CategoriesSheet
 import com.psyche.app.ui.sheets.ContributionSheet
 import com.psyche.app.ui.sheets.EntryDetailSheet
@@ -56,27 +54,25 @@ import com.psyche.app.ui.sheets.GoalEditorSheet
 import com.psyche.app.ui.sheets.QuickTransactionEditorSheet
 import com.psyche.app.ui.sheets.QuickTransactionsSheet
 import com.psyche.app.ui.sheets.SettingsSheet
-import com.psyche.app.ui.sheets.SetupSheet
 import com.psyche.app.ui.sheets.TransferSheet
 import com.psyche.app.ui.theme.LocalPsychePalette
 import com.psyche.app.util.ActivityRow
-import com.psyche.app.util.BudgetMath
 import com.psyche.app.util.GoalProgress
+import com.psyche.app.util.PositionMath
 import com.psyche.app.widget.QuickTransactionWidget
 import com.psyche.app.widget.QuickWidgetRenderer
-import java.time.YearMonth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private sealed interface Overlay {
     data object Capture : Overlay
     data object Settings : Overlay
-    data object Setup : Overlay
     data object Transfer : Overlay
     data object Categories : Overlay
-    data class BudgetEditor(val month: YearMonth) : Overlay
-    data class Allocations(val month: YearMonth) : Overlay
-    data class AccountEditor(val accountId: Long?) : Overlay
+    data class AccountEditor(
+        val accountId: Long?,
+        val initialType: AccountType? = null,
+    ) : Overlay
     data class GoalEditor(val goalId: Long?) : Overlay
     data class Contribution(val goalId: Long) : Overlay
     data class Entry(val row: ActivityRow) : Overlay
@@ -106,15 +102,19 @@ fun PsycheApp(
     }
 
     fun copySummary() {
-        val summary = state.home?.summary ?: return
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         clipboard?.setPrimaryClip(
             ClipData.newPlainText(
-                "Psyche period summary",
-                BudgetMath.periodSummary(summary),
+                "Psyche balance summary",
+                PositionMath.summaryText(
+                    position = state.position,
+                    balances = state.accountBalances,
+                    goals = state.goals,
+                    today = state.today,
+                ),
             ),
         )
-        viewModel.notify("Period summary copied")
+        viewModel.notify("Balance summary copied")
     }
 
     fun addWidget() {
@@ -223,9 +223,9 @@ fun PsycheApp(
                 onCapture = { overlay = Overlay.Capture },
                 onSettings = { overlay = Overlay.Settings },
                 onOpenEntry = { overlay = Overlay.Entry(it) },
-                onEditCap = { overlay = Overlay.BudgetEditor(state.homeMonth) },
-                onSetup = { overlay = Overlay.Setup },
                 onAddAccount = { overlay = Overlay.AccountEditor(null) },
+                onAddCard = { overlay = Overlay.AccountEditor(null, AccountType.CREDIT) },
+                onEditAccount = { overlay = Overlay.AccountEditor(it.id) },
                 onAccounts = { tabName = MainTab.ACCOUNTS.name },
                 onActivity = { tabName = MainTab.ACTIVITY.name },
                 onCopySummary = ::copySummary,
@@ -238,18 +238,6 @@ fun PsycheApp(
                 onPreviousMonth = { viewModel.shiftActivityMonth(-1) },
                 onNextMonth = { viewModel.shiftActivityMonth(1) },
                 onResetMonth = viewModel::resetActivityMonth,
-                onCapture = { overlay = Overlay.Capture },
-            )
-
-            MainTab.BUDGETS -> BudgetsScreen(
-                state = state,
-                onSettings = { overlay = Overlay.Settings },
-                onPreviousMonth = { viewModel.shiftBudgetMonth(-1) },
-                onNextMonth = { viewModel.shiftBudgetMonth(1) },
-                onResetMonth = viewModel::resetBudgetMonth,
-                onEditCap = { overlay = Overlay.BudgetEditor(state.budgetMonth) },
-                onEditAllocations = { overlay = Overlay.Allocations(state.budgetMonth) },
-                onManageCategories = { overlay = Overlay.Categories },
                 onCapture = { overlay = Overlay.Capture },
             )
 
@@ -299,6 +287,7 @@ fun PsycheApp(
             state = state,
             onCopySummary = ::copySummary,
             onManageQuickActions = { overlay = Overlay.QuickActions },
+            onManageCategories = { overlay = Overlay.Categories },
             onAddWidget = ::addWidget,
             onDismiss = { overlay = null },
         )
@@ -331,54 +320,11 @@ fun PsycheApp(
             }
         }
 
-        Overlay.Setup -> SetupSheet(
-            viewModel = viewModel,
-            state = state,
-            onDismiss = { overlay = null },
-        )
-
         Overlay.Categories -> CategoriesSheet(
             viewModel = viewModel,
             categories = state.snapshot.categories,
-            onDismiss = { overlay = null },
+            onDismiss = { overlay = Overlay.Settings },
         )
-
-        is Overlay.BudgetEditor -> {
-            val month = current.month
-            val cap = state.snapshot.budgets[month]?.capCents
-            val spent = BudgetMath.summarize(
-                month = month,
-                capCents = cap,
-                entries = state.snapshot.entries,
-                today = state.today,
-            ).spentCents
-            BudgetEditorSheet(
-                viewModel = viewModel,
-                month = month,
-                capCents = cap,
-                previousCapCents = state.snapshot.budgets[month.minusMonths(1)]?.capCents,
-                spentCents = spent,
-                onDismiss = { overlay = null },
-            )
-        }
-
-        is Overlay.Allocations -> {
-            val month = current.month
-            val cap = state.snapshot.budgets[month]?.capCents ?: 0L
-            val allocations = state.snapshot.allocations[month].orEmpty()
-            val categories = state.snapshot.categories.filter {
-                !it.archived || allocations.containsKey(it.id)
-            }
-            AllocationsSheet(
-                viewModel = viewModel,
-                month = month,
-                capCents = cap,
-                categories = categories,
-                allocations = allocations,
-                onManageCategories = { overlay = Overlay.Categories },
-                onDismiss = { overlay = null },
-            )
-        }
 
         Overlay.Transfer -> TransferSheet(
             viewModel = viewModel,
@@ -395,6 +341,7 @@ fun PsycheApp(
             AccountEditorSheet(
                 viewModel = viewModel,
                 account = account,
+                initialType = current.initialType,
                 onDismiss = { overlay = null },
             )
         }

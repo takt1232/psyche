@@ -82,14 +82,12 @@ import com.psyche.app.ui.theme.LocalPsychePalette
 import com.psyche.app.ui.theme.PassType
 import com.psyche.app.util.AccountBalance
 import com.psyche.app.util.ActivityRow
-import com.psyche.app.util.BudgetMath
 import com.psyche.app.util.Formats
 import com.psyche.app.util.GoalProgress
 import com.psyche.app.util.Money
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.YearMonth
 import java.time.ZoneId
 import java.util.Locale
 import kotlinx.coroutines.launch
@@ -127,300 +125,6 @@ fun SheetFrame(
     }
 }
 
-@Composable
-fun BudgetEditorSheet(
-    viewModel: FinanceViewModel,
-    month: YearMonth,
-    capCents: Long?,
-    previousCapCents: Long?,
-    spentCents: Long,
-    onDismiss: () -> Unit,
-) {
-    val palette = LocalPsychePalette.current
-    val scope = rememberCoroutineScope()
-    var amount by rememberSaveable { mutableStateOf(capCents?.let { Money.inputValue(it) } ?: "") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var saving by remember { mutableStateOf(false) }
-    val parsed = Money.parse(amount)
-
-    SheetFrame(onDismiss = onDismiss) {
-        SheetHeader(
-            eyebrow = Formats.monthYear(month),
-            title = if (capCents == null) "SET THE CAP" else "EDIT THE CAP",
-            onClose = onDismiss,
-        )
-        Spacer(Modifier.height(16.dp))
-        Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = palette.boardRow,
-            border = BorderStroke(1.dp, palette.boardLine),
-        ) {
-            Column(Modifier.padding(12.dp)) {
-                MonoText(
-                    text = "ALREADY SPENT THIS MONTH",
-                    color = palette.faint,
-                    style = PassType.monoMicro.copy(letterSpacing = 0.9.sp),
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = Money.formatPeso(spentCents),
-                    style = PassType.monoData.copy(fontSize = 16.sp),
-                    color = palette.onGround,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "The cap is the ceiling for expenses in this month. Income and transfers do not change it.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = palette.muted,
-                )
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-        MoneyField(
-            label = "Monthly cap",
-            value = amount,
-            onValueChange = {
-                amount = it
-                error = null
-            },
-            error = error,
-            supporting = "PHP \u00B7 up to \u20B1999,999.99",
-        )
-        if (previousCapCents != null && capCents == null) {
-            Spacer(Modifier.height(8.dp))
-            SecondaryAction(
-                text = "Use previous cap \u00B7 ${Money.formatPeso(previousCapCents)}",
-                onClick = { amount = Money.inputValue(previousCapCents) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        Spacer(Modifier.height(18.dp))
-        PrimaryAction(
-            text = if (saving) "Saving\u2026" else "Save cap",
-            onClick = {
-                val cents = parsed
-                if (cents == null) {
-                    error = "Enter an amount between \u20B10.01 and \u20B1999,999.99."
-                    return@PrimaryAction
-                }
-                saving = true
-                error = null
-                scope.launch {
-                    viewModel.saveBudget(month, cents)
-                        .onSuccess { onDismiss() }
-                        .onFailure { error = it.message ?: "Couldn't save the cap." }
-                    saving = false
-                }
-            },
-            enabled = !saving && parsed != null,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        MonoText(
-            text = "CHANGES REPRINT THE PASS IMMEDIATELY.",
-            color = palette.faint,
-            style = PassType.monoMicro.copy(fontSize = 7.sp),
-        )
-    }
-}
-
-@Composable
-fun AllocationsSheet(
-    viewModel: FinanceViewModel,
-    month: YearMonth,
-    capCents: Long,
-    categories: List<Category>,
-    allocations: Map<Long, Long>,
-    onManageCategories: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val palette = LocalPsychePalette.current
-    val scope = rememberCoroutineScope()
-    val values = remember(categories, allocations) {
-        categories.associate { category ->
-            category.id to (allocations[category.id]?.let { Money.inputValue(it) } ?: "")
-        }.toMutableMap()
-    }
-    var fields by remember(categories, allocations) {
-        mutableStateOf<Map<Long, String>>(values)
-    }
-    var error by remember { mutableStateOf<String?>(null) }
-    var saving by remember { mutableStateOf(false) }
-    val parsed = fields.mapValues { (_, value) -> if (value.isBlank()) 0L else Money.parse(value) }
-    val hasInvalid = parsed.values.any { it == null }
-    val total = parsed.values.filterNotNull().sum()
-    val over = total > capCents
-
-    SheetFrame(onDismiss = onDismiss) {
-        SheetHeader(
-            eyebrow = Formats.monthYear(month),
-            title = "CATEGORY LINES",
-            onClose = onDismiss,
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = "Split the cap into optional category lines. Leave a line blank to keep the money unallocated.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = palette.muted,
-        )
-        Spacer(Modifier.height(14.dp))
-        Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = palette.boardRow,
-            border = BorderStroke(1.dp, palette.boardLine),
-        ) {
-            Column(Modifier.padding(12.dp)) {
-                Row {
-                    MonoText(
-                        text = "CAP ${Money.formatPeso(capCents)}",
-                        color = palette.faint,
-                        style = PassType.monoMicro,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    MonoText(
-                        text = "UNALLOCATED ${Money.formatPeso((capCents - total).coerceAtLeast(0))}",
-                        color = if (over) palette.danger else palette.muted,
-                        style = PassType.monoMicro,
-                    )
-                }
-                Spacer(Modifier.height(6.dp))
-                ProgressTrack(
-                    fraction = total.toFloat() / capCents.toFloat(),
-                    color = if (over) palette.danger else palette.alert,
-                    track = palette.panelLine,
-                    height = 5.dp,
-                )
-                if (over) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = "Lines are ${Money.formatPeso(total - capCents)} over the cap.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = palette.danger,
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-        if (categories.isEmpty()) {
-            Text(
-                text = "No categories yet. The cap works without them, or add a few lines now.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = palette.muted,
-            )
-            Spacer(Modifier.height(10.dp))
-            SecondaryAction(
-                text = "Manage categories",
-                onClick = onManageCategories,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else {
-            categories.forEach { category ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = category.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = palette.onGround,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (category.archived) {
-                            Text(
-                                text = "ARCHIVED",
-                                style = PassType.monoMicro.copy(fontSize = 7.sp),
-                                color = palette.faint,
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    InlineMoneyField(
-                        value = fields[category.id].orEmpty(),
-                        onValueChange = { value ->
-                            fields = fields + (category.id to value)
-                            error = null
-                        },
-                        isError = fields[category.id]?.isNotBlank() == true &&
-                            parsed[category.id] == null,
-                    )
-                }
-            }
-            if (error != null) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = error ?: "",
-                    style = PassType.monoDataSmall,
-                    color = palette.danger,
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-            PrimaryAction(
-                text = if (saving) "Saving\u2026" else "Save allocations",
-                onClick = {
-                    if (hasInvalid) {
-                        error = "A line has an amount that isn't valid."
-                        return@PrimaryAction
-                    }
-                    if (over) {
-                        error = "Lower the lines so they fit inside the cap."
-                        return@PrimaryAction
-                    }
-                    saving = true
-                    scope.launch {
-                        viewModel.saveAllocations(
-                            month = month,
-                            allocations = parsed.mapNotNull { (id, value) ->
-                                value?.takeIf { it > 0 }?.let { id to it }
-                            }.toMap(),
-                        ).onSuccess { onDismiss() }
-                            .onFailure { error = it.message ?: "Couldn't save allocations." }
-                        saving = false
-                    }
-                },
-                enabled = !saving && !hasInvalid && !over,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(8.dp))
-            QuietAction(
-                text = "Manage categories",
-                onClick = onManageCategories,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-        }
-    }
-}
-
-@Composable
-private fun InlineMoneyField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    isError: Boolean,
-) {
-    val palette = LocalPsychePalette.current
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier.width(126.dp),
-        singleLine = true,
-        isError = isError,
-        prefix = {
-            Text(
-                text = "\u20B1",
-                style = PassType.monoDataSmall,
-                color = palette.faint,
-            )
-        },
-        textStyle = PassType.monoData.copy(fontSize = 12.sp),
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-            keyboardType = KeyboardType.Decimal,
-        ),
-        colors = fieldColors(),
-    )
-}
 
 @Composable
 fun CategoriesSheet(
@@ -443,13 +147,13 @@ fun CategoriesSheet(
 
     SheetFrame(onDismiss = onDismiss) {
         SheetHeader(
-            eyebrow = "The cap",
+            eyebrow = "Expense labels",
             title = "CATEGORIES",
             onClose = onDismiss,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Categories are optional labels for expenses. Archiving hides one from capture; its past entries remain.",
+            text = "Categories are optional labels for expenses. They do not carry caps. Archiving hides one from capture; its past entries remain.",
             style = MaterialTheme.typography.bodySmall,
             color = palette.muted,
         )
@@ -684,12 +388,15 @@ private fun fieldColors(): TextFieldColors {
 fun AccountEditorSheet(
     viewModel: FinanceViewModel,
     account: Account?,
+    initialType: AccountType? = null,
     onDismiss: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
     val scope = rememberCoroutineScope()
     var name by rememberSaveable { mutableStateOf(account?.name ?: "") }
-    var typeName by rememberSaveable { mutableStateOf((account?.type ?: AccountType.CASH).name) }
+    var typeName by rememberSaveable {
+        mutableStateOf((account?.type ?: initialType ?: AccountType.CASH).name)
+    }
     var opening by rememberSaveable {
         val existing = account?.openingBalanceCents ?: 0L
         val initial = when {
@@ -775,12 +482,12 @@ fun AccountEditorSheet(
         Spacer(Modifier.height(8.dp))
         Text(
             text = if (isDefaultAccount) {
-                "This is the default Cash account. It stays Cash, stays on the pass, and cannot be archived; set its opening balance to the cash you actually hold."
+                "This is the default Cash account. It stays Cash, stays in the balance, and cannot be archived; set its opening balance to the cash you actually hold."
             } else {
                 when (type) {
-                    AccountType.CASH -> "Physical wallet. Counts as cash on the pass."
-                    AccountType.DEBIT_EWALLET -> "Bank, ATM, or e-wallet. Counts as cash."
-                    AccountType.CREDIT -> "Spending counts against the cap. Paying the card is a transfer."
+                    AccountType.CASH -> "Physical wallet. Counts in your money."
+                    AccountType.DEBIT_EWALLET -> "Bank, ATM, or e-wallet. Counts in your money."
+                    AccountType.CREDIT -> "Spending adds to the card's outstanding balance. Paying the card is a transfer."
                 }
             },
             style = MaterialTheme.typography.bodySmall,
@@ -956,7 +663,7 @@ fun AccountEditorSheet(
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
                 MonoText(
-                    text = "Archiving hides the account from capture. Its entries stay in the record.",
+                    text = "Archiving hides the account from capture and excludes its balance from totals. Its entries stay in the record.",
                     color = palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp),
                 )
@@ -989,7 +696,7 @@ fun GoalEditorSheet(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Contributions come from an account and stay separate from the monthly cap. They are transfers, not expenses.",
+            text = "Contributions come from an account and stay in your money. They are transfers, not expenses, and do not change the net position.",
             style = MaterialTheme.typography.bodySmall,
             color = palette.muted,
         )
@@ -1250,9 +957,9 @@ fun TransferSheet(
         Spacer(Modifier.height(8.dp))
         Text(
             text = if (cardPayment) {
-                "Recorded as a card payment. It reduces cash and the card's outstanding balance, but does not count against the pass again."
+                "Recorded as a card payment. It reduces cash and the card's outstanding balance; your net position does not change."
             } else {
-                "This is recorded as a transfer. It does not count as spending against the pass."
+                "This is recorded as a transfer. It moves money between accounts and does not change your net position."
             },
             style = MaterialTheme.typography.bodySmall,
             color = palette.muted,
@@ -1452,7 +1159,7 @@ fun ContributionSheet(
         NoteField(value = note, onValueChange = { note = it })
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "This is recorded as a transfer. It does not count as spending against the pass.",
+            text = "This is recorded as a transfer. It does not count as spending and does not change your net position.",
             style = MaterialTheme.typography.bodySmall,
             color = palette.muted,
         )
@@ -1605,8 +1312,8 @@ fun EntryDetailSheet(
                         valueColor = palette.passInk,
                     )
                     KeyValueRow(
-                        label = "LEFT AFTER",
-                        value = row.leftAfterCents?.let { Money.formatPeso(it) } ?: "Not set",
+                        label = "NET AFTER",
+                        value = row.netAfterCents?.let { Money.formatPeso(it) } ?: "\u2014",
                         valueColor = palette.passInk,
                     )
                     if (entry.description.isNotBlank()) {
@@ -1898,6 +1605,7 @@ fun SettingsSheet(
     state: FinanceUiState,
     onCopySummary: () -> Unit,
     onManageQuickActions: () -> Unit,
+    onManageCategories: () -> Unit,
     onAddWidget: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1927,7 +1635,7 @@ fun SettingsSheet(
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "System is the default. The fixed Budget Pass palette changes with your choice; dynamic colour is off.",
+            text = "System is the default. The fixed Balance Pass palette changes with your choice; dynamic colour is off.",
             style = MaterialTheme.typography.bodySmall,
             color = palette.muted,
         )
@@ -1973,7 +1681,20 @@ fun SettingsSheet(
             }
         }
         Spacer(Modifier.height(22.dp))
-        SettingsSection("THE PASS")
+        SettingsSection("EXPENSES")
+        Text(
+            text = "Categories are optional labels for expenses. They do not carry caps.",
+            style = MaterialTheme.typography.bodySmall,
+            color = palette.muted,
+        )
+        Spacer(Modifier.height(10.dp))
+        SecondaryAction(
+            text = "Manage categories",
+            onClick = onManageCategories,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(22.dp))
+        SettingsSection("BALANCE")
         Surface(
             shape = RoundedCornerShape(10.dp),
             color = palette.boardRow,
@@ -1981,19 +1702,19 @@ fun SettingsSheet(
         ) {
             Column(Modifier.padding(12.dp)) {
                 MonoText(
-                    text = "MONTHLY SUMMARY",
+                    text = "SNAPSHOT REF",
                     color = palette.faint,
                     style = PassType.monoMicro.copy(letterSpacing = 1.sp),
                 )
                 Spacer(Modifier.height(3.dp))
                 Text(
-                    text = state.home?.summary?.periodRef ?: "No pass yet",
+                    text = state.position.snapshotRef,
                     style = PassType.monoData,
                     color = palette.onGround,
                 )
                 Spacer(Modifier.height(8.dp))
                 SecondaryAction(
-                    text = "Copy period summary",
+                    text = "Copy balance summary",
                     onClick = onCopySummary,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -2011,7 +1732,7 @@ fun SettingsSheet(
         Spacer(Modifier.height(10.dp))
         Row {
             MonoText(
-                text = "PSYCHE \u00B7 FINANCE PASS",
+                text = "PSYCHE \u00B7 FINANCE",
                 color = palette.faint,
                 style = PassType.monoMicro.copy(fontSize = 7.sp),
             )
@@ -2025,7 +1746,7 @@ fun SettingsSheet(
     }
 }
 
-private const val BuildConfigLabel = "VERSION 1.0"
+private const val BuildConfigLabel = "VERSION 1.1.0"
 
 @Composable
 private fun SettingsSection(title: String) {
@@ -2038,232 +1759,6 @@ private fun SettingsSection(title: String) {
     )
 }
 
-@Composable
-fun SetupSheet(
-    viewModel: FinanceViewModel,
-    state: FinanceUiState,
-    onDismiss: () -> Unit,
-) {
-    val palette = LocalPsychePalette.current
-    val scope = rememberCoroutineScope()
-    val home = state.home
-    val hasAccounts = state.snapshot.activeAccounts.isNotEmpty()
-    val needsCap = home?.capCents == null
-    var accountName by rememberSaveable { mutableStateOf("Cash") }
-    var typeName by rememberSaveable { mutableStateOf(AccountType.CASH.name) }
-    var opening by rememberSaveable { mutableStateOf("") }
-    var limit by rememberSaveable { mutableStateOf("") }
-    var lastFour by rememberSaveable { mutableStateOf("") }
-    var cap by rememberSaveable { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    var saving by remember { mutableStateOf(false) }
-    val type = AccountType.valueOf(typeName)
-    val isCredit = type == AccountType.CREDIT
-    val openingParsed = parseAccountAmount(opening)
-    val limitParsed = if (limit.isBlank()) 0L else Money.parse(limit)
-    val capParsed = if (!needsCap) 0L else Money.parse(cap)
-    val lastFourValid = lastFour.isBlank() || lastFour.length == 4
-    val accountValid = accountName.isNotBlank() &&
-        openingParsed != null &&
-        lastFourValid &&
-        (!isCredit || (limitParsed != null && limitParsed > 0))
-    val valid = (hasAccounts || accountValid) && (!needsCap || capParsed != null)
-
-    SheetFrame(onDismiss = onDismiss) {
-        SheetHeader(
-            eyebrow = "First run",
-            title = "SET UP THE PASS",
-            onClose = onDismiss,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = if (hasAccounts) {
-                "Set this month's cap. Your default Cash account is ready at \u20B10; set its opening balance in Accounts when you want. Nothing is prefilled."
-            } else {
-                "Two honest numbers start the pass: what you hold, and what this month may spend. Nothing is prefilled."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = palette.muted,
-        )
-        Spacer(Modifier.height(18.dp))
-        if (!hasAccounts) {
-            MonoText(
-                text = "01 \u00B7 STARTING ACCOUNT",
-                color = palette.accentText,
-                style = PassType.monoLabel.copy(letterSpacing = 1.2.sp),
-            )
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = accountName,
-                onValueChange = { accountName = it.take(30) },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Account name", style = MaterialTheme.typography.bodySmall) },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium,
-                colors = fieldColors(),
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                AccountType.entries.forEach { option ->
-                    ChoiceChip(
-                        label = option.label,
-                        selected = option == type,
-                        onClick = { typeName = option.name },
-                    )
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            MoneyField(
-                label = if (isCredit) "Outstanding now (optional)" else "Opening balance (optional)",
-                value = opening,
-                onValueChange = {
-                    opening = it
-                    error = null
-                },
-                supporting = if (isCredit) {
-                    "What you owe on the card today. Leave blank if it is paid off."
-                } else {
-                    "Leave blank for \u20B10. This is not invented."
-                },
-                error = if (opening.isNotBlank() && openingParsed == null) "Use a valid amount." else null,
-            )
-            if (isCredit) {
-                Spacer(Modifier.height(10.dp))
-                MoneyField(
-                    label = "Credit limit",
-                    value = limit,
-                    onValueChange = {
-                        limit = it
-                        error = null
-                    },
-                    supporting = if (limit.isBlank()) "Required for a credit account." else null,
-                    error = if (limit.isNotBlank() && limitParsed == null) "Use a valid limit." else null,
-                )
-            }
-            if (type != AccountType.CASH) {
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = lastFour,
-                    onValueChange = { value ->
-                        lastFour = value.filter { it.isDigit() }.take(4)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Card last four (optional)", style = MaterialTheme.typography.bodySmall) },
-                    singleLine = true,
-                    isError = !lastFourValid,
-                    supportingText = if (!lastFourValid) {
-                        {
-                            Text(
-                                text = "Enter all four digits, or leave it blank.",
-                                style = PassType.monoDataSmall,
-                                color = palette.danger,
-                            )
-                        }
-                    } else {
-                        null
-                    },
-                    textStyle = PassType.monoData,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                    ),
-                    colors = fieldColors(),
-                )
-            }
-            Spacer(Modifier.height(18.dp))
-        } else {
-            MonoText(
-                text = "ACCOUNT READY \u00B7 ${state.snapshot.activeAccounts.joinToString { it.name }.uppercase(Locale.US)}",
-                color = palette.muted,
-                style = PassType.monoMicro.copy(letterSpacing = 0.8.sp),
-            )
-            Spacer(Modifier.height(18.dp))
-        }
-        if (needsCap) {
-            MonoText(
-                text = if (hasAccounts) "01 \u00B7 MONTHLY CAP" else "02 \u00B7 MONTHLY CAP",
-                color = palette.accentText,
-                style = PassType.monoLabel.copy(letterSpacing = 1.2.sp),
-            )
-            Spacer(Modifier.height(8.dp))
-            MoneyField(
-                label = "Cap for ${Formats.monthTitle(state.homeMonth)}",
-                value = cap,
-                onValueChange = {
-                    cap = it
-                    error = null
-                },
-                error = if (cap.isNotBlank() && capParsed == null) "Use a valid amount." else null,
-                supporting = "Expenses count against this. Income never expands it.",
-            )
-        }
-        if (error != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = error ?: "",
-                style = PassType.monoDataSmall,
-                color = palette.danger,
-            )
-        }
-        Spacer(Modifier.height(20.dp))
-        PrimaryAction(
-            text = when {
-                saving -> "Setting up\u2026"
-                !hasAccounts -> "Create pass"
-                needsCap -> "Set cap"
-                else -> "Done"
-            },
-            onClick = {
-                if (!valid) {
-                    error = "Check the fields before continuing."
-                    return@PrimaryAction
-                }
-                saving = true
-                error = null
-                scope.launch {
-                    if (!hasAccounts) {
-                        val enteredOpening = openingParsed ?: 0L
-                        val result = viewModel.createAccount(
-                            name = accountName,
-                            type = type,
-                            openingBalanceCents = if (isCredit) -enteredOpening else enteredOpening,
-                            creditLimitCents = if (isCredit) limitParsed ?: 0L else 0L,
-                            lastFour = lastFour.ifBlank { null },
-                        )
-                        if (result.isFailure) {
-                            error = result.exceptionOrNull()?.message ?: "Couldn't add the account."
-                            saving = false
-                            return@launch
-                        }
-                    }
-                    if (needsCap) {
-                        val result = viewModel.saveBudget(state.homeMonth, capParsed ?: 0L)
-                        if (result.isFailure) {
-                            error = result.exceptionOrNull()?.message ?: "Couldn't set the cap."
-                            saving = false
-                            return@launch
-                        }
-                    }
-                    saving = false
-                    onDismiss()
-                }
-            },
-            enabled = !saving && valid,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        MonoText(
-            text = "YOU CAN CHANGE THE CAP AND ACCOUNTS LATER. THE RECORD STAYS LOCAL.",
-            color = palette.faint,
-            style = PassType.monoMicro.copy(fontSize = 7.sp),
-            textAlign = TextAlign.Center,
-        )
-    }
-}
 
 @Composable
 fun QuickTransactionsSheet(

@@ -1,7 +1,5 @@
 package com.psyche.app.data
 
-import java.time.YearMonth
-
 enum class AccountType(val storage: String, val label: String, val shortLabel: String) {
     CASH("cash", "Cash", "CASH"),
     DEBIT_EWALLET("debit", "Debit / e-wallet", "DEBIT"),
@@ -68,14 +66,6 @@ data class LedgerEntry(
     val needsAttention: Boolean,
 )
 
-data class Budget(val yearMonth: YearMonth, val capCents: Long)
-
-data class CategoryAllocation(
-    val yearMonth: YearMonth,
-    val categoryId: Long,
-    val allocatedCents: Long,
-)
-
 data class SavingsGoal(
     val id: Long,
     val name: String,
@@ -134,8 +124,6 @@ data class FinanceSnapshot(
     val accounts: List<Account> = emptyList(),
     val categories: List<Category> = emptyList(),
     val entries: List<LedgerEntry> = emptyList(),
-    val budgets: Map<YearMonth, Budget> = emptyMap(),
-    val allocations: Map<YearMonth, Map<Long, Long>> = emptyMap(),
     val goals: List<SavingsGoal> = emptyList(),
     val quickTransactions: List<QuickTransaction> = emptyList(),
     val settings: FinanceSettings = FinanceSettings(),
@@ -178,14 +166,6 @@ fun LedgerEntryEntity.toDomain() = LedgerEntry(
     occurredAt = occurredAt,
     createdAt = createdAt,
     needsAttention = needsAttention,
-)
-
-fun BudgetEntity.toDomain() = Budget(YearMonth.parse(yearMonth), capCents)
-
-fun AllocationEntity.toDomain() = CategoryAllocation(
-    yearMonth = YearMonth.parse(yearMonth),
-    categoryId = categoryId,
-    allocatedCents = allocatedCents,
 )
 
 fun GoalEntity.toDomain() = SavingsGoal(

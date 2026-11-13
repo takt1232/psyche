@@ -14,13 +14,9 @@ import com.psyche.app.R
 import com.psyche.app.data.FinanceSnapshot
 import com.psyche.app.data.MAX_QUICK_ACTIONS
 import com.psyche.app.data.TransactionType
-import com.psyche.app.util.BudgetMath
-import com.psyche.app.util.BudgetStatus
-import com.psyche.app.util.Formats
 import com.psyche.app.util.LedgerMath
 import com.psyche.app.util.Money
-import java.time.LocalDate
-import java.time.YearMonth
+import com.psyche.app.util.PositionMath
 import kotlinx.coroutines.flow.first
 
 object QuickWidgetRenderer {
@@ -58,18 +54,12 @@ object QuickWidgetRenderer {
 
     fun build(context: Context, snapshot: FinanceSnapshot): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_quick)
-        val today = LocalDate.now()
-        val month = YearMonth.from(today)
-        val cap = snapshot.budgets[month]?.capCents
-        val summary = BudgetMath.summarize(month, cap, snapshot.entries, today)
-        val over = summary.status == BudgetStatus.OVER
-        val amount = when {
-            summary.capCents == null -> context.getString(R.string.widget_no_cap)
-            over -> Money.formatPeso(summary.overByCents)
-            else -> Money.formatPeso(summary.remainingCents ?: 0)
-        }
+        val position = PositionMath.summarize(snapshot.accounts, snapshot.goals, snapshot.entries)
+        val noAccounts = position.accountCount == 0
+        val negative = position.netCents < 0
+        val amount = if (noAccounts) "\u2014" else Money.formatPeso(position.netCents)
         val amountSize = when {
-            summary.capCents == null -> 17f
+            noAccounts -> 17f
             amount.length > 9 -> 19f
             amount.length > 7 -> 22f
             else -> 25f
@@ -82,24 +72,41 @@ object QuickWidgetRenderer {
         )
         views.setTextColor(
             R.id.widget_remaining,
-            context.getColor(if (over) R.color.widget_danger else R.color.widget_ink),
+            context.getColor(if (negative) R.color.widget_danger else R.color.widget_ink),
         )
         views.setTextViewText(
             R.id.widget_remaining_label,
-            when {
-                summary.capCents == null -> ""
-                over -> context.getString(R.string.widget_over_label)
-                else -> context.getString(R.string.widget_remaining_label)
-            },
+            context.getString(
+                when {
+                    noAccounts -> R.string.widget_no_accounts
+                    negative -> R.string.widget_short_label
+                    else -> R.string.widget_net_label
+                },
+            ),
         )
         views.setTextViewText(
             R.id.widget_status,
-            "${Formats.monthYear(month)} \u00B7 ${summary.statusLabel}",
+            if (noAccounts) {
+                context.getString(R.string.widget_no_accounts_status)
+            } else {
+                context.getString(
+                    R.string.widget_balance_status,
+                    Money.formatPeso(position.moneyCents),
+                    Money.formatPeso(position.owedCents),
+                )
+            },
         )
         views.setOnClickPendingIntent(R.id.widget_header, openAppPending(context))
         views.setContentDescription(
             R.id.widget_header,
-            "${context.getString(R.string.widget_header_open)}. $amount ${summary.statusLabel}",
+            if (noAccounts) {
+                "${context.getString(R.string.widget_header_open)}. ${context.getString(R.string.widget_no_accounts_status)}"
+            } else {
+                "${context.getString(R.string.widget_header_open)}. " +
+                    "Net ${Money.formatPeso(position.netCents)}. " +
+                    "Money ${Money.formatPeso(position.moneyCents)}. " +
+                    "Owed ${Money.formatPeso(position.owedCents)}."
+            },
         )
 
         val activeAccountIds = snapshot.activeAccounts.map { it.id }.toSet()

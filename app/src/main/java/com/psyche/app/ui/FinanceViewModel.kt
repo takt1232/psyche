@@ -17,6 +17,7 @@ import com.psyche.app.data.SettingsKeys
 import com.psyche.app.data.ThemeMode
 import com.psyche.app.data.TransactionType
 import com.psyche.app.util.Money
+import com.psyche.app.util.PositionSummary
 import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
@@ -41,7 +42,6 @@ class FinanceViewModel(
 ) : ViewModel() {
 
     private val activityMonth = MutableStateFlow(YearMonth.now(clock))
-    private val budgetMonth = MutableStateFlow(YearMonth.now(clock))
     private val today = MutableStateFlow(LocalDate.now(clock))
 
     private val _events = MutableSharedFlow<UiEvent>(extraBufferCapacity = 8)
@@ -64,14 +64,12 @@ class FinanceViewModel(
     val uiState: StateFlow<FinanceUiState> = combine(
         repository.snapshot,
         activityMonth,
-        budgetMonth,
         today,
-    ) { snapshot, activity, budget, currentDay ->
+    ) { snapshot, activity, currentDay ->
         FinanceStateBuilder.build(
             snapshot = snapshot,
             today = currentDay,
             activityMonth = activity,
-            budgetMonth = budget,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -79,9 +77,8 @@ class FinanceViewModel(
         initialValue = FinanceUiState(
             isLoading = true,
             today = LocalDate.now(clock),
-            homeMonth = YearMonth.now(clock),
             activityMonth = YearMonth.now(clock),
-            budgetMonth = YearMonth.now(clock),
+            position = PositionSummary.empty(LocalDate.now(clock)),
         ),
     )
 
@@ -93,9 +90,6 @@ class FinanceViewModel(
         if (activityMonth.value == previousMonth) {
             activityMonth.value = YearMonth.from(current)
         }
-        if (budgetMonth.value == previousMonth) {
-            budgetMonth.value = YearMonth.from(current)
-        }
         today.value = current
     }
 
@@ -103,16 +97,8 @@ class FinanceViewModel(
         activityMonth.update { it.plusMonths(months) }
     }
 
-    fun shiftBudgetMonth(months: Long) {
-        budgetMonth.update { it.plusMonths(months) }
-    }
-
     fun resetActivityMonth() {
         activityMonth.value = YearMonth.now(clock)
-    }
-
-    fun resetBudgetMonth() {
-        budgetMonth.value = YearMonth.now(clock)
     }
 
     suspend fun recordCapture(
@@ -253,16 +239,6 @@ class FinanceViewModel(
 
             is SnackbarFollowUp.OpenEntry -> Unit
         }
-    }
-
-    suspend fun saveBudget(month: YearMonth, capCents: Long): Result<Unit> = runCatching {
-        repository.setBudget(month, capCents)
-        _events.emit(UiEvent("Cap set for ${month.month.name.lowercase().replaceFirstChar { it.uppercase() }}"))
-    }
-
-    suspend fun saveAllocations(month: YearMonth, allocations: Map<Long, Long>): Result<Unit> = runCatching {
-        repository.setAllocations(month, allocations)
-        _events.emit(UiEvent("Allocations updated"))
     }
 
     suspend fun createCategory(name: String): Result<Unit> = runCatching {

@@ -3,7 +3,6 @@ package com.psyche.app.data
 import com.psyche.app.util.AccountBalance
 import com.psyche.app.util.LedgerMath
 import com.psyche.app.util.Money
-import java.time.YearMonth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -39,20 +38,13 @@ class FinanceRepository(
                 settings = settings.associate { it.key to it.value },
             )
         },
-        dao.observeBudgets(),
-        dao.observeAllocations(),
         dao.observeGoals(),
         dao.observeQuickTransactions(),
-    ) { ledger, budgets, allocations, goals, quickTransactions ->
+    ) { ledger, goals, quickTransactions ->
         FinanceSnapshot(
             accounts = ledger.accounts.map { it.toDomain() },
             categories = ledger.categories.map { it.toDomain() },
             entries = ledger.entries.map { it.toDomain() },
-            budgets = budgets.map { it.toDomain() }.associateBy { it.yearMonth },
-            allocations = allocations
-                .map { it.toDomain() }
-                .groupBy { it.yearMonth }
-                .mapValues { (_, values) -> values.associate { it.categoryId to it.allocatedCents } },
             goals = goals.map { it.toDomain() },
             quickTransactions = quickTransactions.map { it.toDomain() },
             settings = FinanceSettings.from(ledger.settings),
@@ -291,35 +283,6 @@ class FinanceRepository(
         dao.clearHighlights()
     }
 
-    suspend fun setBudget(month: YearMonth, capCents: Long) {
-        require(capCents in 1..Money.MAX_AMOUNT_CENTS) {
-            "Enter a cap between \u20B10.01 and \u20B1999,999.99."
-        }
-        val allocated = snapshotBudgetAllocations(month)
-        require(allocated.values.sum() <= capCents) {
-            "Category allocations add up to ${Money.formatPeso(allocated.values.sum())}. Raise the cap or lower an allocation first."
-        }
-        dao.upsertBudget(BudgetEntity(month.toString(), capCents))
-    }
-
-    suspend fun setAllocations(month: YearMonth, allocations: Map<Long, Long>) {
-        val positive = allocations.filterValues { it > 0 }
-        require(positive.values.all { it in 1..Money.MAX_AMOUNT_CENTS }) {
-            "Enter an allocation between \u20B10.01 and \u20B1999,999.99."
-        }
-        val cap = dao.budget(month.toString())?.capCents
-        require(cap != null || positive.isEmpty()) { "Set a monthly cap before allocating categories." }
-        require(cap == null || positive.values.sum() <= cap) {
-            "Allocations cannot exceed the ${Money.formatPeso(cap ?: 0)} cap."
-        }
-        dao.replaceAllocations(
-            month.toString(),
-            positive.map { (categoryId, cents) ->
-                AllocationEntity(month.toString(), categoryId, cents)
-            },
-        )
-    }
-
     private suspend fun accountBalanceFor(
         accountId: Long,
         excludingEntryId: Long? = null,
@@ -353,9 +316,6 @@ class FinanceRepository(
             ?: 0L
         return (goal.targetCents - saved).coerceAtLeast(0)
     }
-
-    private suspend fun snapshotBudgetAllocations(month: YearMonth): Map<Long, Long> =
-        dao.allocations(month.toString()).associate { it.categoryId to it.allocatedCents }
 
     suspend fun addCategory(name: String): Long {
         val clean = name.trim()

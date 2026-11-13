@@ -21,12 +21,6 @@ abstract class FinanceDao {
     @Query("SELECT * FROM ledger_entries ORDER BY occurredAt DESC, id DESC")
     abstract fun observeEntries(): Flow<List<LedgerEntryEntity>>
 
-    @Query("SELECT * FROM monthly_budgets ORDER BY yearMonth ASC")
-    abstract fun observeBudgets(): Flow<List<BudgetEntity>>
-
-    @Query("SELECT * FROM category_allocations")
-    abstract fun observeAllocations(): Flow<List<AllocationEntity>>
-
     @Query("SELECT * FROM savings_goals ORDER BY archived ASC, sortOrder ASC, id ASC")
     abstract fun observeGoals(): Flow<List<GoalEntity>>
 
@@ -35,12 +29,6 @@ abstract class FinanceDao {
 
     @Query("SELECT * FROM app_settings")
     abstract fun observeSettings(): Flow<List<SettingEntity>>
-
-    @Query("SELECT * FROM monthly_budgets WHERE yearMonth = :yearMonth")
-    abstract suspend fun budget(yearMonth: String): BudgetEntity?
-
-    @Query("SELECT * FROM category_allocations WHERE yearMonth = :yearMonth")
-    abstract suspend fun allocations(yearMonth: String): List<AllocationEntity>
 
     @Query("SELECT * FROM accounts")
     abstract suspend fun allAccounts(): List<AccountEntity>
@@ -70,9 +58,6 @@ abstract class FinanceDao {
     abstract suspend fun upsertGoal(goal: GoalEntity): Long
 
     @Upsert
-    abstract suspend fun upsertBudget(budget: BudgetEntity)
-
-    @Upsert
     abstract suspend fun upsertSetting(setting: SettingEntity)
 
     @Insert
@@ -83,12 +68,6 @@ abstract class FinanceDao {
 
     @Update
     abstract suspend fun updateEntry(entry: LedgerEntryEntity)
-
-    @Insert
-    abstract suspend fun insertAllocations(allocations: List<AllocationEntity>)
-
-    @Query("DELETE FROM category_allocations WHERE yearMonth = :yearMonth")
-    abstract suspend fun deleteAllocations(yearMonth: String)
 
     @Query("DELETE FROM ledger_entries WHERE id = :id")
     abstract suspend fun deleteEntry(id: Long)
@@ -103,11 +82,5 @@ abstract class FinanceDao {
     open suspend fun insertLightingEntry(entry: LedgerEntryEntity): Long {
         clearHighlights()
         return insertEntry(entry.copy(needsAttention = true))
-    }
-
-    @Transaction
-    open suspend fun replaceAllocations(yearMonth: String, allocations: List<AllocationEntity>) {
-        deleteAllocations(yearMonth)
-        if (allocations.isNotEmpty()) insertAllocations(allocations)
     }
 }

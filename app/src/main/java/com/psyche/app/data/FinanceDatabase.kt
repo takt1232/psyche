@@ -12,13 +12,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AccountEntity::class,
         CategoryEntity::class,
         LedgerEntryEntity::class,
-        BudgetEntity::class,
-        AllocationEntity::class,
         GoalEntity::class,
         QuickTransactionEntity::class,
         SettingEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class FinanceDatabase : RoomDatabase() {
@@ -98,13 +96,20 @@ abstract class FinanceDatabase : RoomDatabase() {
             }
         }
 
+        private val migration3To4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `monthly_budgets`")
+                db.execSQL("DROP TABLE IF EXISTS `category_allocations`")
+            }
+        }
+
         fun build(context: Context): FinanceDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 FinanceDatabase::class.java,
                 "psyche-finance.db",
             )
-                .addMigrations(migration1To2, migration2To3)
+                .addMigrations(migration1To2, migration2To3, migration3To4)
                 .addCallback(feedDefaultAccount)
                 .build()
     }

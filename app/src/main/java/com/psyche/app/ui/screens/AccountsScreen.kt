@@ -68,7 +68,7 @@ fun AccountsScreen(
             .background(palette.ground),
     ) {
         AppTopBar(
-            subtitle = "CASH ${Money.formatPeso(state.cashTotalCents)}",
+            subtitle = "NET ${Money.formatPeso(state.position.netCents)}",
             onSettings = onSettings,
         )
         LazyColumn(
@@ -85,19 +85,27 @@ fun AccountsScreen(
                     border = BorderStroke(1.dp, palette.boardLine),
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         StatCell(
-                            label = "CASH + DEBIT",
-                            value = Money.formatPeso(state.cashTotalCents),
-                            valueStyle = PassType.monoData.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
+                            label = "MONEY",
+                            value = Money.formatPeso(state.position.moneyCents),
+                            valueStyle = PassType.monoData.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
                             modifier = Modifier.weight(1f),
                         )
                         StatCell(
-                            label = "SAVED IN GOALS",
-                            value = Money.formatPeso(state.savingsTotalCents),
-                            valueStyle = PassType.monoData.copy(fontSize = 16.sp, fontWeight = FontWeight.Medium),
+                            label = "OWED",
+                            value = Money.formatPeso(state.position.owedCents),
+                            valueColor = if (state.position.owedCents > 0) palette.danger else palette.onGround,
+                            valueStyle = PassType.monoData.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                            modifier = Modifier.weight(1f),
+                        )
+                        StatCell(
+                            label = "NET",
+                            value = Money.formatPeso(state.position.netCents),
+                            valueColor = if (state.position.isNegative) palette.danger else palette.onGround,
+                            valueStyle = PassType.monoData.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -129,7 +137,7 @@ fun AccountsScreen(
                 item {
                     EmptyPanel(
                         title = "No accounts yet",
-                        body = "Add the cash, debit, e-wallet, or credit account you actually spend from. Credit spending still counts against the cap.",
+                        body = "Add the cash, debit, e-wallet, or credit account you actually use. Every active balance feeds the net position.",
                         actionLabel = "Add account",
                         onAction = onAddAccount,
                         eyebrow = "NO ACCOUNTS",
@@ -153,9 +161,10 @@ fun AccountsScreen(
                 )
                 Spacer(Modifier.height(4.dp))
                 MonoText(
-                    text = "GOAL CONTRIBUTIONS ARE TRANSFERS, NOT EXPENSES.",
+                    text = "GOAL MONEY COUNTS IN THE NET POSITION. CONTRIBUTIONS ARE TRANSFERS, NOT EXPENSES.",
                     color = palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp),
+                    maxLines = 2,
                 )
                 Spacer(Modifier.height(8.dp))
             }
@@ -163,7 +172,7 @@ fun AccountsScreen(
                 item {
                     EmptyPanel(
                         title = "No savings goal yet",
-                        body = "Name a target and move money toward it from a cash or bank account. The cap is untouched.",
+                        body = "Name a target and move money toward it from a cash or bank account. The money still counts as yours.",
                         actionLabel = "Add goal",
                         onAction = onAddGoal,
                         eyebrow = "NO GOALS",
@@ -185,7 +194,7 @@ fun AccountsScreen(
                     SectionHeading(title = "Archived")
                     Spacer(Modifier.height(6.dp))
                     MonoText(
-                        text = "HIDDEN FROM CAPTURE, STILL PART OF THE RECORD.",
+                        text = "HIDDEN FROM CAPTURE AND NOT COUNTED IN TOTALS.",
                         color = palette.faint,
                         style = PassType.monoMicro.copy(fontSize = 7.sp),
                     )
@@ -210,7 +219,7 @@ fun AccountsScreen(
             item {
                 Spacer(Modifier.height(24.dp))
                 MonoText(
-                    text = "OPENING BALANCES ARE YOURS, NOT DERIVED. EVERY LATER BALANCE IS CALCULATED FROM THE LEDGER.",
+                    text = "OPENING BALANCES ARE YOURS, NOT DERIVED. ACTIVE ACCOUNTS FEED THE NET POSITION; ARCHIVED ONES DO NOT.",
                     color = palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp, letterSpacing = 0.5.sp),
                     maxLines = 3,
@@ -303,12 +312,12 @@ private fun AccountRow(
                 )
                 Text(
                     text = if (credit) {
-                        "${Money.formatPeso(balance.availableCreditCents)} AVAILABLE"
+                        "OWED ${Money.formatPeso(balance.outstandingCents)}"
                     } else {
                         "OPENING ${Money.formatPeso(account.openingBalanceCents)}"
                     },
                     style = PassType.monoMicro.copy(fontSize = 7.sp),
-                    color = palette.faint,
+                    color = if (credit && balance.outstandingCents > 0) palette.danger else palette.faint,
                 )
             }
         }
@@ -323,14 +332,14 @@ private fun AccountRow(
             Spacer(Modifier.height(4.dp))
             Row {
                 MonoText(
-                    text = "OUTSTANDING ${Money.formatPeso(balance.outstandingCents)}",
+                    text = "LIMIT ${Money.formatPeso(account.creditLimitCents)}",
                     color = palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp),
                 )
                 Spacer(Modifier.weight(1f))
                 MonoText(
-                    text = "TAP TO EDIT",
-                    color = palette.faint,
+                    text = "${Money.formatPeso(balance.availableCreditCents)} AVAILABLE",
+                    color = if (balance.availableCreditCents <= 0) palette.danger else palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp),
                 )
             }

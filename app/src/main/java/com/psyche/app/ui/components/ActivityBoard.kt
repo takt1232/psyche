@@ -75,7 +75,7 @@ fun LiveActivitySection(
             Spacer(Modifier.height(10.dp))
             EmptyPanel(
                 title = "No activity yet",
-                body = "Log the first expense. The pass reprints, and the new row stays lit until you notice it.",
+                body = "Log the first expense. The pass reprints, the running net updates, and the new row stays lit until you notice it.",
                 actionLabel = "Log expense",
                 onAction = onLogExpense,
             )
@@ -132,7 +132,7 @@ fun BoardColumnHeader(
             else -> 44.dp
         }
         val amountWidth = if (compact) 64.dp else 70.dp
-        val leftWidth = if (compact) 50.dp else 56.dp
+        val netWidth = if (compact) 50.dp else 56.dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -150,8 +150,8 @@ fun BoardColumnHeader(
                 alignEnd = true,
             )
             BoardHeaderCell(
-                text = "LEFT",
-                modifier = Modifier.width(leftWidth),
+                text = "NET",
+                modifier = Modifier.width(netWidth),
                 alignEnd = true,
             )
         }
@@ -198,10 +198,10 @@ fun ActivityBoardRow(
         row.entry.type == TransactionType.TRANSFER -> palette.muted
         else -> palette.onGround
     }
-    val left = row.leftAfterCents
-    val leftColor = when {
+    val net = row.netAfterCents
+    val netColor = when {
         lit -> palette.onAlert
-        left != null && left < 0 -> palette.danger
+        net != null && net < 0 -> palette.danger
         else -> palette.muted
     }
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
@@ -212,7 +212,7 @@ fun ActivityBoardRow(
             else -> 44.dp
         }
         val amountWidth = if (compact) 64.dp else 70.dp
-        val leftWidth = if (compact) 50.dp else 56.dp
+        val netWidth = if (compact) 50.dp else 56.dp
         val entryDate = Instant.ofEpochMilli(row.entry.occurredAt)
             .atZone(ZoneId.systemDefault())
             .toLocalDate()
@@ -305,10 +305,10 @@ fun ActivityBoardRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = left?.let { Money.formatPeso(it, showSymbol = false) } ?: "\u2014",
+                text = net?.let { Money.formatPeso(it, showSymbol = false) } ?: "\u2014",
                 style = PassType.monoDataSmall.copy(fontSize = 9.sp),
-                color = leftColor,
-                modifier = Modifier.width(leftWidth),
+                color = netColor,
+                modifier = Modifier.width(netWidth),
                 maxLines = 1,
                 textAlign = androidx.compose.ui.text.style.TextAlign.End,
                 overflow = TextOverflow.Ellipsis,

@@ -49,19 +49,6 @@ data class LedgerEntryEntity(
     val needsAttention: Boolean,
 )
 
-@Entity(tableName = "monthly_budgets")
-data class BudgetEntity(
-    @PrimaryKey val yearMonth: String,
-    val capCents: Long,
-)
-
-@Entity(tableName = "category_allocations", primaryKeys = ["yearMonth", "categoryId"])
-data class AllocationEntity(
-    val yearMonth: String,
-    val categoryId: Long,
-    val allocatedCents: Long,
-)
-
 @Entity(tableName = "savings_goals")
 data class GoalEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

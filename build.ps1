@@ -56,8 +56,8 @@ function Get-Serial {
 
     $online = @(
         $output |
-            Select-String -Pattern "^(\S+)\s+device$" |
-            ForEach-Object { $_.Matches[0].Groups[1].Value }
+            Select-String -Pattern "^(.+?)\s+device$" |
+            ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() }
     )
 
     if ($online.Count -eq 0) {

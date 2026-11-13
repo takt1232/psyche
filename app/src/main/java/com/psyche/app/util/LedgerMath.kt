@@ -41,28 +41,9 @@ data class GoalProgress(
     val remainingCents: Long get() = (goal.targetCents - savedCents).coerceAtLeast(0)
 }
 
-data class CategoryLine(
-    val category: Category,
-    val allocatedCents: Long?,
-    val spentCents: Long,
-) {
-    val remainingCents: Long? get() = allocatedCents?.minus(spentCents)
-    val isOver: Boolean
-        get() {
-            val remaining = remainingCents
-            return remaining != null && remaining < 0
-        }
-    val fraction: Float
-        get() = if (allocatedCents == null || allocatedCents <= 0) {
-            0f
-        } else {
-            (spentCents.toFloat() / allocatedCents).coerceIn(0f, 1f)
-        }
-}
-
 data class ActivityRow(
     val entry: LedgerEntry,
-    val leftAfterCents: Long?,
+    val netAfterCents: Long?,
     val accountName: String,
     val categoryName: String?,
     val destinationName: String?,
@@ -132,40 +113,9 @@ object LedgerMath {
             GoalProgress(goal, saved)
         }
 
-    fun categoryLines(
-        categories: List<Category>,
-        entries: List<LedgerEntry>,
-        month: YearMonth,
-        allocations: Map<Long, Long>,
-        zone: ZoneId = ZoneId.systemDefault(),
-    ): List<CategoryLine> {
-        val monthExpenses = BudgetMath.entriesForMonth(entries, month, zone)
-            .filter { it.type == TransactionType.EXPENSE }
-        val spentByCategory = monthExpenses
-            .mapNotNull { entry -> entry.categoryId?.let { it to entry.amountCents } }
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (_, values) -> values.sum() }
-        return categories.map { category ->
-            CategoryLine(
-                category = category,
-                allocatedCents = allocations[category.id],
-                spentCents = spentByCategory[category.id] ?: 0,
-            )
-        }
-    }
-
-    fun unallocatedSpending(
-        entries: List<LedgerEntry>,
-        month: YearMonth,
-        zone: ZoneId = ZoneId.systemDefault(),
-    ): Long = BudgetMath.entriesForMonth(entries, month, zone)
-        .filter { it.type == TransactionType.EXPENSE && it.categoryId == null }
-        .sumOf { it.amountCents }
-
     fun activityRows(
         entries: List<LedgerEntry>,
         month: YearMonth,
-        capCents: Long?,
         accounts: List<Account>,
         categories: List<Category>,
         goals: List<SavingsGoal>,
@@ -174,18 +124,25 @@ object LedgerMath {
         val accountNames = accounts.associate { it.id to it.name }
         val categoryNames = categories.associate { it.id to it.name }
         val goalNames = goals.associate { it.id to it.name }
-        val monthEntries = BudgetMath.entriesForMonth(entries, month, zone)
-        val ascending = monthEntries.sortedWith(compareBy({ it.occurredAt }, { it.id }))
-        val leftById = mutableMapOf<Long, Long?>()
-        if (capCents != null) {
-            var left = capCents
-            ascending.forEach { entry ->
-                if (entry.type == TransactionType.EXPENSE) left -= entry.amountCents
-                leftById[entry.id] = left
+        val activeAccountIds = accounts.filterNot { it.archived }.map { it.id }.toSet()
+        val activeGoalIds = goals.filterNot { it.archived }.map { it.id }.toSet()
+        val monthEntries = MonthMath.entriesForMonth(entries, month, zone)
+        val monthStart = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        var runningNet = accounts
+            .filterNot { it.archived }
+            .sumOf { it.openingBalanceCents }
+        entries.forEach { entry ->
+            if (entry.occurredAt < monthStart) {
+                runningNet += PositionMath.netEffectCents(entry, activeAccountIds, activeGoalIds)
             }
-        } else {
-            ascending.forEach { leftById[it.id] = null }
         }
+        val netById = mutableMapOf<Long, Long>()
+        monthEntries
+            .sortedWith(compareBy({ it.occurredAt }, { it.id }))
+            .forEach { entry ->
+                runningNet += PositionMath.netEffectCents(entry, activeAccountIds, activeGoalIds)
+                netById[entry.id] = runningNet
+            }
         return monthEntries
             .sortedWith(compareByDescending<LedgerEntry> { it.occurredAt }.thenByDescending { it.id })
             .map { entry ->
@@ -199,7 +156,7 @@ object LedgerMath {
                 }
                 ActivityRow(
                     entry = entry,
-                    leftAfterCents = leftById[entry.id],
+                    netAfterCents = netById[entry.id],
                     accountName = accountNames[entry.accountId] ?: "Account removed",
                     categoryName = entry.categoryId?.let { categoryNames[it] },
                     destinationName = destination,
@@ -207,10 +164,4 @@ object LedgerMath {
                 )
             }
     }
-
-    fun cashTotal(balances: List<AccountBalance>): Long = balances
-        .filter { it.account.type != AccountType.CREDIT }
-        .sumOf { it.balanceCents }
-
-    fun savingsTotal(goals: List<GoalProgress>): Long = goals.sumOf { it.savedCents }
 }

@@ -34,8 +34,6 @@ class FinanceRepositoryQuickTransactionTest {
         every { dao.observeCategories() } returns flowOf(categories)
         every { dao.observeEntries() } returns flowOf(emptyList())
         every { dao.observeSettings() } returns flowOf(emptyList())
-        every { dao.observeBudgets() } returns flowOf(emptyList())
-        every { dao.observeAllocations() } returns flowOf(emptyList())
         every { dao.observeGoals() } returns flowOf(emptyList())
         every { dao.observeQuickTransactions() } returns flowOf(quick)
         coEvery { dao.allAccounts() } returns accounts

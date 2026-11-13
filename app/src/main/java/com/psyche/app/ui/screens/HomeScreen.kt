@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,13 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,14 +28,15 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.psyche.app.data.Account
 import com.psyche.app.data.AccountType
 import com.psyche.app.data.QuickTransaction
 import com.psyche.app.data.TransactionType
 import com.psyche.app.ui.FinanceUiState
-import com.psyche.app.ui.MonthView
 import com.psyche.app.ui.components.AppTopBar
-import com.psyche.app.ui.components.BudgetPassCard
+import com.psyche.app.ui.components.BalancePassCard
 import com.psyche.app.ui.components.EmptyPanel
+import com.psyche.app.ui.components.Hairline
 import com.psyche.app.ui.components.LiveActivitySection
 import com.psyche.app.ui.components.MonoText
 import com.psyche.app.ui.components.PrimaryAction
@@ -60,20 +60,16 @@ fun HomeScreen(
     onCapture: () -> Unit,
     onSettings: () -> Unit,
     onOpenEntry: (ActivityRow) -> Unit,
-    onEditCap: () -> Unit,
-    onSetup: () -> Unit,
     onAddAccount: () -> Unit,
+    onAddCard: () -> Unit,
+    onEditAccount: (Account) -> Unit,
     onAccounts: () -> Unit,
     onActivity: () -> Unit,
     onCopySummary: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
-    val home = state.home
-    val subtitle = if (home != null && home.capCents != null) {
-        "${Formats.monthShort(home.month)} \u00B7 WK ${home.summary.weekIndex}/${home.summary.weekCount}"
-    } else {
-        "${Formats.monthShort(state.homeMonth)} \u00B7 SETUP"
-    }
+    val home = state.homeActivity
+    val subtitle = "${Formats.shortDate(state.today)} \u00B7 ${state.position.status.label}"
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -81,7 +77,7 @@ fun HomeScreen(
     ) {
         AppTopBar(subtitle = subtitle, onSettings = onSettings)
         if (state.isLoading || home == null) {
-            LoadingPass()
+            LoadingBalance()
             return@Column
         }
         LazyColumn(
@@ -89,35 +85,44 @@ fun HomeScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 108.dp),
         ) {
             item {
-                BudgetPassCard(
-                    view = home,
+                BalancePassCard(
+                    position = state.position,
+                    today = state.today,
                     quickActionCount = state.quickTransactions.size,
-                    onEditCap = onEditCap,
-                    onCopyPeriodSummary = onCopySummary,
+                    onCopySummary = onCopySummary,
+                    onAddAccount = onAddAccount,
                 )
             }
-            if (state.needsSetup) {
+            if (state.isFirstRun) {
                 item {
                     Spacer(Modifier.height(12.dp))
-                    SetupPanel(
-                        hasCap = home.capCents != null,
-                        hasAccount = state.snapshot.activeAccounts.isNotEmpty(),
-                        onSetup = onSetup,
+                    FirstRunPanel(
+                        state = state,
+                        onEditAccount = onEditAccount,
                         onAddAccount = onAddAccount,
-                        onAccounts = onAccounts,
+                        onAddCard = onAddCard,
                     )
                 }
             }
-            if (state.quickTransactions.isNotEmpty() || !state.needsSetup) {
+            if (state.accountBalances.isNotEmpty() || state.goals.isNotEmpty()) {
                 item {
-                    Spacer(Modifier.height(22.dp))
-                    OneTapSection(
-                        quickTransactions = state.quickTransactions,
+                    Spacer(Modifier.height(24.dp))
+                    AccountsSection(
                         balances = state.accountBalances,
-                        onRun = onRunQuick,
-                        onManage = onManageQuick,
+                        goals = state.goals,
+                        onAccounts = onAccounts,
+                        onEditAccount = onEditAccount,
                     )
                 }
+            }
+            item {
+                Spacer(Modifier.height(24.dp))
+                OneTapSection(
+                    quickTransactions = state.quickTransactions,
+                    balances = state.accountBalances,
+                    onRun = onRunQuick,
+                    onManage = onManageQuick,
+                )
             }
             item {
                 Spacer(Modifier.height(24.dp))
@@ -153,24 +158,12 @@ fun HomeScreen(
                     }
                 }
             }
-            if (state.accountBalances.isNotEmpty() || state.goals.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(26.dp))
-                    PocketSection(
-                        balances = state.accountBalances,
-                        goals = state.goals,
-                        cashTotalCents = state.cashTotalCents,
-                        savingsTotalCents = state.savingsTotalCents,
-                        onAccounts = onAccounts,
-                    )
-                }
-            }
         }
     }
 }
 
 @Composable
-private fun LoadingPass() {
+private fun LoadingBalance() {
     val palette = LocalPsychePalette.current
     Column(
         modifier = Modifier
@@ -187,7 +180,7 @@ private fun LoadingPass() {
         )
         Spacer(Modifier.height(16.dp))
         MonoText(
-            text = "READING THE LOCAL PASS",
+            text = "READING THE LOCAL LEDGER",
             color = palette.muted,
             style = PassType.monoLabel.copy(letterSpacing = 1.5.sp),
         )
@@ -195,14 +188,16 @@ private fun LoadingPass() {
 }
 
 @Composable
-private fun SetupPanel(
-    hasCap: Boolean,
-    hasAccount: Boolean,
-    onSetup: () -> Unit,
+private fun FirstRunPanel(
+    state: FinanceUiState,
+    onEditAccount: (Account) -> Unit,
     onAddAccount: () -> Unit,
-    onAccounts: () -> Unit,
+    onAddCard: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
+    val startingAccount = state.snapshot.activeAccounts
+        .firstOrNull { it.isDefault }
+        ?: state.snapshot.activeAccounts.firstOrNull()
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -212,7 +207,7 @@ private fun SetupPanel(
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Stamp(
-                    text = if (!hasCap) "FIRST RUN" else "ONE STEP LEFT",
+                    text = "FIRST RUN",
                     color = palette.accentText,
                     borderColor = palette.alert.copy(alpha = 0.5f),
                 )
@@ -225,56 +220,228 @@ private fun SetupPanel(
             }
             Spacer(Modifier.height(10.dp))
             Text(
-                text = if (!hasCap) "Give the pass a number" else "Add a starting account",
-                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                text = "Set your real starting point",
+                style = MaterialTheme.typography.titleLarge,
                 color = palette.onGround,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = if (!hasCap && hasAccount) {
-                    "Set this month's spending cap. Your default Cash account is ready at \u20B10; set its opening balance in Accounts when you want."
-                } else if (!hasCap) {
-                    "Set this month's spending cap and add the account the money moves through. The app starts empty on purpose."
-                } else {
-                    "The cap is set. Add the cash or card account you spend from before the first capture."
-                },
-                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                text = "Enter what Cash holds and add any card outstanding. The pass will tell you whether the money covers every card.",
+                style = MaterialTheme.typography.bodyMedium,
                 color = palette.muted,
             )
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PrimaryAction(
-                    text = if (!hasCap) "Set up pass" else "Add account",
-                    onClick = if (!hasCap) onSetup else onAddAccount,
+                    text = if (startingAccount != null) "Set cash" else "Add account",
+                    onClick = {
+                        if (startingAccount != null) {
+                            onEditAccount(startingAccount)
+                        } else {
+                            onAddAccount()
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                 )
-                if (!hasCap && !hasAccount) {
-                    QuietSetupAction(
-                        text = "I have an account",
-                        onClick = onAccounts,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                SecondaryAction(
+                    text = "Add card",
+                    onClick = onAddCard,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun QuietSetupAction(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun AccountsSection(
+    balances: List<AccountBalance>,
+    goals: List<GoalProgress>,
+    onAccounts: () -> Unit,
+    onEditAccount: (Account) -> Unit,
 ) {
-    Box(modifier = modifier.heightIn(min = 52.dp), contentAlignment = Alignment.Center) {
-        Text(
-            text = text.uppercase(),
-            style = PassType.monoLabel.copy(fontSize = 8.sp, letterSpacing = 0.7.sp),
-            color = LocalPsychePalette.current.muted,
-            modifier = Modifier
-                .clickable(role = Role.Button, onClick = onClick)
-                .padding(12.dp),
+    val palette = LocalPsychePalette.current
+    Column(Modifier.fillMaxWidth()) {
+        SectionHeading(
+            title = "Accounts",
+            trailing = {
+                Text(
+                    text = "OPEN ACCOUNTS",
+                    style = PassType.monoMicro.copy(letterSpacing = 0.9.sp),
+                    color = palette.muted,
+                    modifier = Modifier
+                        .clickable(role = Role.Button, onClick = onAccounts)
+                        .padding(vertical = 8.dp),
+                )
+            },
         )
+        Spacer(Modifier.height(2.dp))
+        if (balances.isEmpty()) {
+            EmptyPanel(
+                title = "No accounts yet",
+                body = "Add the cash, debit, e-wallet, or credit account you actually use.",
+                actionLabel = "Add account",
+                onAction = onAccounts,
+                eyebrow = "NO ACCOUNTS",
+            )
+        } else {
+            balances.forEach { balance ->
+                HomeAccountRow(
+                    balance = balance,
+                    onClick = { onEditAccount(balance.account) },
+                )
+            }
+        }
+        if (goals.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            SectionHeading(
+                title = "Savings",
+                trailing = {
+                    Text(
+                        text = "MANAGE",
+                        style = PassType.monoMicro.copy(letterSpacing = 0.9.sp),
+                        color = palette.muted,
+                        modifier = Modifier
+                            .clickable(role = Role.Button, onClick = onAccounts)
+                            .padding(vertical = 8.dp),
+                    )
+                },
+            )
+            Spacer(Modifier.height(2.dp))
+            goals.forEach { goal ->
+                HomeGoalRow(goal = goal, onClick = onAccounts)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeAccountRow(
+    balance: AccountBalance,
+    onClick: () -> Unit,
+) {
+    val palette = LocalPsychePalette.current
+    val account = balance.account
+    val credit = account.type == AccountType.CREDIT
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = 11.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = account.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = palette.onGround,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (account.isDefault) {
+                        Spacer(Modifier.width(6.dp))
+                        Stamp(
+                            text = "Default",
+                            color = palette.accentText,
+                            borderColor = palette.panelLine,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(3.dp))
+                MonoText(
+                    text = buildString {
+                        append(account.type.shortLabel)
+                        account.lastFour?.let { append(" \u00B7 \u2022\u2022$it") }
+                    },
+                    color = palette.faint,
+                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = Money.formatPeso(balance.balanceCents),
+                    style = PassType.monoData.copy(fontSize = 15.sp),
+                    color = if (balance.balanceCents < 0) palette.danger else palette.onGround,
+                    maxLines = 1,
+                )
+                Text(
+                    text = if (credit) {
+                        "OWED ${Money.formatPeso(balance.outstandingCents)}"
+                    } else {
+                        "CALCULATED BALANCE"
+                    },
+                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                    color = if (credit && balance.outstandingCents > 0) palette.danger else palette.faint,
+                )
+            }
+        }
+        if (credit && account.creditLimitCents > 0) {
+            Spacer(Modifier.height(7.dp))
+            ProgressTrack(
+                fraction = balance.outstandingCents.toFloat() / account.creditLimitCents.toFloat(),
+                color = if (balance.availableCreditCents <= 0) palette.danger else palette.alert,
+                track = palette.panelLine,
+                height = 4.dp,
+            )
+            Spacer(Modifier.height(4.dp))
+            Row {
+                MonoText(
+                    text = "LIMIT ${Money.formatPeso(account.creditLimitCents)}",
+                    color = palette.faint,
+                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                )
+                Spacer(Modifier.weight(1f))
+                MonoText(
+                    text = "${Money.formatPeso(balance.availableCreditCents)} AVAILABLE",
+                    color = if (balance.availableCreditCents <= 0) palette.danger else palette.faint,
+                    style = PassType.monoMicro.copy(fontSize = 7.sp),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Hairline(color = palette.boardLine)
+    }
+}
+
+@Composable
+private fun HomeGoalRow(
+    goal: GoalProgress,
+    onClick: () -> Unit,
+) {
+    val palette = LocalPsychePalette.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = goal.goal.name,
+                style = MaterialTheme.typography.titleSmall,
+                color = palette.onGround,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "${Money.formatPeso(goal.savedCents)} / ${Money.formatPeso(goal.goal.targetCents)}",
+                style = PassType.monoDataSmall.copy(fontSize = 9.sp),
+                color = palette.muted,
+                maxLines = 1,
+            )
+        }
+        Spacer(Modifier.height(7.dp))
+        ProgressTrack(
+            fraction = goal.fraction,
+            color = palette.alert,
+            track = palette.panelLine,
+            height = 4.dp,
+        )
+        Spacer(Modifier.height(2.dp))
+        Hairline(color = palette.boardLine)
     }
 }
 
@@ -312,13 +479,13 @@ private fun OneTapSection(
                 Column(Modifier.padding(14.dp)) {
                     Text(
                         text = "Log a preset in one tap",
-                        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         color = palette.onGround,
                     )
                     Spacer(Modifier.height(3.dp))
                     Text(
                         text = "Custom buttons for the home-screen widget. Each tap logs the amount immediately.",
-                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = palette.muted,
                     )
                     Spacer(Modifier.height(10.dp))
@@ -385,7 +552,7 @@ private fun QuickActionCard(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = quick.label,
-                style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall,
                 color = if (insufficient) palette.danger else palette.onGround,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -396,172 +563,6 @@ private fun QuickActionCard(
                 style = PassType.monoData.copy(fontSize = 15.sp),
                 color = if (insufficient) palette.danger else palette.onGround,
                 maxLines = 1,
-            )
-        }
-    }
-}
-
-@Composable
-private fun PocketSection(
-    balances: List<AccountBalance>,
-    goals: List<GoalProgress>,
-    cashTotalCents: Long,
-    savingsTotalCents: Long,
-    onAccounts: () -> Unit,
-) {
-    val palette = LocalPsychePalette.current
-    Column(Modifier.fillMaxWidth()) {
-        SectionHeading(
-            title = "Pocket",
-            trailing = {
-                Text(
-                    text = "OPEN ACCOUNTS",
-                    style = PassType.monoMicro.copy(letterSpacing = 0.9.sp),
-                    color = palette.muted,
-                    modifier = Modifier
-                        .clickable(role = Role.Button, onClick = onAccounts)
-                        .padding(vertical = 8.dp),
-                )
-            },
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PocketStat(
-                label = "CASH",
-                value = Money.formatPeso(cashTotalCents),
-                onClick = onAccounts,
-                modifier = Modifier.weight(1f),
-            )
-            PocketStat(
-                label = "SAVED",
-                value = Money.formatPeso(savingsTotalCents),
-                onClick = onAccounts,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        if (goals.isNotEmpty() || balances.size > 1) {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                balances.forEach { balance ->
-                    AccountChip(balance)
-                }
-                goals.forEach { goal ->
-                    GoalChip(goal)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PocketStat(
-    label: String,
-    value: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val palette = LocalPsychePalette.current
-    Surface(
-        modifier = modifier.clickable(role = Role.Button, onClick = onClick),
-        shape = RoundedCornerShape(10.dp),
-        color = palette.boardRow,
-        border = BorderStroke(1.dp, palette.boardLine),
-    ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            MonoText(label, color = palette.faint, style = PassType.monoMicro)
-            Spacer(Modifier.height(3.dp))
-            Text(
-                text = value,
-                style = PassType.monoData.copy(fontSize = 15.sp),
-                color = palette.onGround,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-private fun AccountChip(balance: AccountBalance) {
-    val palette = LocalPsychePalette.current
-    val account = balance.account
-    Surface(
-        modifier = Modifier.width(158.dp),
-        shape = RoundedCornerShape(10.dp),
-        color = palette.boardRow,
-        border = BorderStroke(1.dp, palette.boardLine),
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(
-                text = account.name,
-                style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-                color = palette.onGround,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(2.dp))
-            MonoText(
-                text = account.type.shortLabel + (account.lastFour?.let { " \u00B7 \u2022\u2022$it" } ?: ""),
-                color = palette.faint,
-                style = PassType.monoMicro.copy(fontSize = 7.sp),
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = Money.formatPeso(balance.balanceCents),
-                style = PassType.monoData.copy(fontSize = 14.sp),
-                color = if (balance.balanceCents < 0) palette.danger else palette.onGround,
-                maxLines = 1,
-            )
-            if (account.type == AccountType.CREDIT) {
-                Spacer(Modifier.height(2.dp))
-                MonoText(
-                    text = "${Money.formatPeso(balance.availableCreditCents)} AVAILABLE",
-                    color = palette.faint,
-                    style = PassType.monoMicro.copy(fontSize = 7.sp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun GoalChip(goal: GoalProgress) {
-    val palette = LocalPsychePalette.current
-    Surface(
-        modifier = Modifier.width(174.dp),
-        shape = RoundedCornerShape(10.dp),
-        color = palette.boardRow,
-        border = BorderStroke(1.dp, palette.boardLine),
-    ) {
-        Column(Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = goal.goal.name,
-                    style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
-                    color = palette.onGround,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Stamp(text = "Goal", color = palette.faint, borderColor = palette.boardLine)
-            }
-            Spacer(Modifier.height(6.dp))
-            MonoText(
-                text = "${Money.formatPeso(goal.savedCents)} / ${Money.formatPeso(goal.goal.targetCents)}",
-                color = palette.muted,
-                style = PassType.monoMicro.copy(fontSize = 8.sp),
-            )
-            Spacer(Modifier.height(6.dp))
-            ProgressTrack(
-                fraction = goal.fraction,
-                color = palette.alert,
-                track = palette.panelLine,
-                height = 4.dp,
             )
         }
     }

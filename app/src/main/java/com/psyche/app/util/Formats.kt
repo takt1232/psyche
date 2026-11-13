@@ -18,6 +18,7 @@ object Formats {
     private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", locale)
     private val clockFormatter = DateTimeFormatter.ofPattern("h:mm", locale)
     private val periodFormatter = DateTimeFormatter.ofPattern("a", locale)
+    private val referenceDateFormatter = DateTimeFormatter.ofPattern("yyMMdd", locale)
 
     fun monthUpper(month: YearMonth): String =
         month.format(monthFormatter).uppercase(locale)
@@ -37,10 +38,15 @@ object Formats {
     }
 
     fun shortDate(instant: Long, zone: ZoneId = ZoneId.systemDefault()): String =
-        Instant.ofEpochMilli(instant).atZone(zone).format(dayFormatter).uppercase(locale)
+        shortDate(Instant.ofEpochMilli(instant).atZone(zone).toLocalDate())
+
+    fun shortDate(date: LocalDate): String =
+        date.format(dayFormatter).uppercase(locale)
 
     fun fullDate(instant: Long, zone: ZoneId = ZoneId.systemDefault()): String =
         Instant.ofEpochMilli(instant).atZone(zone).format(fullDayFormatter)
+
+    fun fullDate(date: LocalDate): String = date.format(fullDayFormatter)
 
     fun time(instant: Long, zone: ZoneId = ZoneId.systemDefault()): String =
         Instant.ofEpochMilli(instant).atZone(zone).format(timeFormatter)
@@ -67,13 +73,8 @@ object Formats {
         }
     }
 
-    fun sequence(month: YearMonth): String = "%03d".format(month.monthValue)
-
-    fun periodReference(month: YearMonth): String {
-        val year = month.year.toString().takeLast(2)
-        val monthPart = month.monthValue.toString().padStart(2, '0')
-        return "PSYCHE-$year$monthPart"
-    }
+    fun snapshotReference(date: LocalDate): String =
+        "PSYCHE-NET-${date.format(referenceDateFormatter)}"
 
     fun monthKey(month: YearMonth): String = month.toString()
 

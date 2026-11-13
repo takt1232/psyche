@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,37 +31,29 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.psyche.app.data.MAX_QUICK_ACTIONS
-import com.psyche.app.ui.MonthView
 import com.psyche.app.ui.theme.LocalPsychePalette
 import com.psyche.app.ui.theme.PassType
-import com.psyche.app.util.BudgetStatus
 import com.psyche.app.util.Formats
 import com.psyche.app.util.Money
+import com.psyche.app.util.PositionStatus
+import com.psyche.app.util.PositionSummary
+import java.time.LocalDate
 import java.util.Locale
 
 @Composable
-fun BudgetPassCard(
-    view: MonthView?,
+fun BalancePassCard(
+    position: PositionSummary,
+    today: LocalDate,
     quickActionCount: Int,
-    onEditCap: () -> Unit,
-    onCopyPeriodSummary: () -> Unit,
+    onCopySummary: () -> Unit,
+    onAddAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalPsychePalette.current
-    val summary = view?.summary
-    val hasCap = summary?.capCents != null
-    val over = summary?.status == BudgetStatus.OVER
-    val amount = when {
-        summary == null -> "\u2014"
-        summary.remainingCents == null -> "SET YOUR CAP"
-        over -> Money.formatPeso(summary.overByCents)
-        else -> Money.formatPeso(summary.remainingCents)
-    }
-    val status = summary?.status ?: BudgetStatus.NO_CAP
-    val statusColor = when (status) {
-        BudgetStatus.OVER -> palette.dangerOnPass
-        BudgetStatus.TIGHT -> palette.cautionOnPass
-        BudgetStatus.NO_CAP -> palette.passMuted
+    val negative = position.netCents < 0
+    val statusColor = when (position.status) {
+        PositionStatus.SHORT -> palette.dangerOnPass
+        PositionStatus.NO_ACCOUNTS -> palette.passMuted
         else -> palette.passInk
     }
     val passShape = RoundedCornerShape(16.dp)
@@ -78,7 +68,7 @@ fun BudgetPassCard(
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             PassTopStrip(
-                sequence = summary?.sequence ?: "---",
+                asOf = Formats.shortDate(today),
             )
             Hairline(color = palette.passLine)
             Column(
@@ -91,13 +81,13 @@ fun BudgetPassCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = summary?.month?.let { Formats.monthYear(it) } ?: "MONTH",
+                        text = "NET POSITION",
                         style = PassType.monoLabel.copy(letterSpacing = 1.2.sp),
                         color = palette.passInk,
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
-                        text = summary?.daysLabel ?: "SET YOUR CAP",
+                        text = "${position.accountCount} ACTIVE ${if (position.accountCount == 1) "ACCOUNT" else "ACCOUNTS"}",
                         style = PassType.monoMicro.copy(letterSpacing = 1.sp),
                         color = palette.passMuted,
                         maxLines = 1,
@@ -110,92 +100,94 @@ fun BudgetPassCard(
                     verticalAlignment = Alignment.Bottom,
                 ) {
                     AutoSizeText(
-                        text = amount,
+                        text = Money.formatPeso(position.netCents),
                         style = PassType.passAmount,
                         minFontSize = 25.sp,
                         maxFontSize = 58.sp,
-                        color = if (over) palette.dangerOnPass else palette.passInk,
+                        color = if (negative) palette.dangerOnPass else palette.passInk,
                         modifier = Modifier.weight(1f),
                     )
                     Spacer(Modifier.width(12.dp))
                     Column(horizontalAlignment = Alignment.End) {
-                        if (hasCap) {
-                            Text(
-                                text = if (over) "OVER BY" else "LEFT",
-                                style = PassType.monoMicro.copy(letterSpacing = 1.2.sp),
-                                color = if (over) palette.dangerOnPass else palette.passMuted,
-                            )
-                            Text(
-                                text = "OF ${Money.formatPeso(summary.capCents)}",
-                                style = PassType.monoData,
-                                color = palette.passInk,
-                                maxLines = 1,
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = summary.percentLeft?.let {
-                                    String.format(Locale.US, "%.1f%%", it)
-                                } ?: "\u2014",
-                                style = PassType.monoData.copy(
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Medium,
-                                ),
-                                color = if (over) palette.dangerOnPass else palette.passInk,
-                            )
-                        } else {
-                            Text(
-                                text = "NO CAP YET",
-                                style = PassType.monoMicro.copy(letterSpacing = 1.2.sp),
-                                color = palette.passMuted,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "THE PASS NEEDS\nA NUMBER",
-                                style = PassType.monoDataSmall.copy(
-                                    fontSize = 9.sp,
-                                    letterSpacing = 0.4.sp,
-                                ),
-                                color = palette.passMuted,
-                            )
-                        }
+                        Text(
+                            text = "MONEY",
+                            style = PassType.monoMicro.copy(letterSpacing = 1.2.sp),
+                            color = palette.passMuted,
+                        )
+                        Text(
+                            text = Money.formatPeso(position.moneyCents),
+                            style = PassType.monoData,
+                            color = palette.passInk,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "OWED",
+                            style = PassType.monoMicro.copy(letterSpacing = 1.2.sp),
+                            color = palette.passMuted,
+                        )
+                        Text(
+                            text = Money.formatPeso(position.owedCents),
+                            style = PassType.monoData.copy(fontWeight = FontWeight.Medium),
+                            color = if (position.owedCents > 0) palette.dangerOnPass else palette.passInk,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (position.owedCents > 0) {
+                    Spacer(Modifier.height(9.dp))
+                    val coverage = ((position.moneyCents.toDouble() / position.owedCents.toDouble()) * 100.0)
+                    val fraction = (coverage / 100.0).toFloat().coerceIn(0f, 1f)
+                    ProgressTrack(
+                        fraction = fraction,
+                        color = if (negative) palette.dangerOnPass else palette.alert,
+                        track = palette.passLine,
+                        height = 5.dp,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "DEBT COVERAGE",
+                            style = PassType.monoMicro.copy(letterSpacing = 1.sp),
+                            color = palette.passMuted,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            text = String.format(Locale.US, "%.0f%%", coverage),
+                            style = PassType.monoDataSmall.copy(fontWeight = FontWeight.Medium),
+                            color = if (negative) palette.dangerOnPass else palette.passInk,
+                        )
                     }
                 }
                 Spacer(Modifier.height(12.dp))
                 PassSegments(
-                    week = if (hasCap) {
-                        "${summary.weekIndex}/${summary.weekCount}"
-                    } else {
-                        "\u2014"
-                    },
-                    daily = if (hasCap) {
-                        Money.formatPeso(summary.dailyAllowanceCents ?: 0)
-                    } else {
-                        "\u2014"
-                    },
-                    status = status.name.replace('_', ' '),
+                    cash = Money.formatPeso(position.cashCents),
+                    saved = Money.formatPeso(position.savingsCents),
+                    status = position.status.label,
                     statusColor = statusColor,
-                    hasCap = hasCap,
                 )
-                if (!hasCap) {
+                if (position.accountCount == 0) {
                     Spacer(Modifier.height(12.dp))
                     PrimaryAction(
-                        text = "Set monthly cap",
-                        onClick = onEditCap,
+                        text = "Add account",
+                        onClick = onAddAccount,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
-            BarcodeBlock(
-                reference = summary?.periodRef ?: "PSYCHE",
+            SnapshotFooter(
+                reference = position.snapshotRef,
                 quickActionCount = quickActionCount,
-                onCopy = onCopyPeriodSummary,
+                onCopy = onCopySummary,
             )
         }
     }
 }
 
 @Composable
-private fun PassTopStrip(sequence: String) {
+private fun PassTopStrip(asOf: String) {
     val palette = LocalPsychePalette.current
     Row(
         modifier = Modifier
@@ -204,13 +196,13 @@ private fun PassTopStrip(sequence: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "BUDGET PASS",
+            text = "BALANCE PASS",
             style = PassType.monoLabel.copy(letterSpacing = 1.6.sp),
             color = palette.passInk,
         )
         Spacer(Modifier.weight(1f))
         Text(
-            text = "SEQ $sequence",
+            text = "AS OF $asOf",
             style = PassType.monoDataSmall.copy(letterSpacing = 0.8.sp),
             color = palette.passMuted,
         )
@@ -219,11 +211,10 @@ private fun PassTopStrip(sequence: String) {
 
 @Composable
 private fun PassSegments(
-    week: String,
-    daily: String,
+    cash: String,
+    saved: String,
     status: String,
     statusColor: Color,
-    hasCap: Boolean,
 ) {
     val palette = LocalPsychePalette.current
     Row(
@@ -233,22 +224,22 @@ private fun PassSegments(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         PassSegment(
-            label = "WEEK",
-            value = week,
+            label = "CASH",
+            value = cash,
             modifier = Modifier.weight(1f),
             valueColor = palette.passInk,
         )
         PassDivider()
         PassSegment(
-            label = "DAILY",
-            value = daily,
+            label = "SAVED",
+            value = saved,
             modifier = Modifier.weight(1.15f),
             valueColor = palette.passInk,
         )
         PassDivider()
         PassSegment(
             label = "STATUS",
-            value = if (hasCap) status else "NO CAP",
+            value = status,
             modifier = Modifier.weight(1.35f),
             valueColor = statusColor,
         )
@@ -294,7 +285,7 @@ private fun PassDivider() {
 }
 
 @Composable
-private fun BarcodeBlock(
+private fun SnapshotFooter(
     reference: String,
     quickActionCount: Int,
     onCopy: () -> Unit,
@@ -306,7 +297,7 @@ private fun BarcodeBlock(
             .clickable(role = Role.Button, onClick = onCopy)
             .semantics {
                 contentDescription =
-                    "Period reference $reference. Tap to copy the month summary."
+                    "Snapshot reference $reference. Tap to copy the balance summary."
             },
     ) {
         Column(
@@ -316,7 +307,7 @@ private fun BarcodeBlock(
         ) {
             DashedLine(color = palette.passLine)
             Spacer(Modifier.height(9.dp))
-            PeriodBarcode(
+            ReferenceBarcode(
                 reference = reference,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -329,7 +320,7 @@ private fun BarcodeBlock(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "PERIOD REF",
+                        text = "SNAPSHOT REF",
                         style = PassType.monoMicro.copy(letterSpacing = 1.1.sp),
                         color = palette.passMuted,
                     )
@@ -387,7 +378,7 @@ private fun BarcodeBlock(
 }
 
 @Composable
-fun PeriodBarcode(
+fun ReferenceBarcode(
     reference: String,
     modifier: Modifier = Modifier,
 ) {

@@ -5,7 +5,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-/** The fixed Budget Pass palette. Dynamic colour is deliberately disabled. */
+/** The fixed Balance Pass palette. Dynamic colour is deliberately disabled. */
 data class PsychePalette(
     val isDark: Boolean,
     val ground: Color,
@@ -23,7 +23,6 @@ data class PsychePalette(
     val onAlert: Color,
     val danger: Color,
     val dangerOnPass: Color,
-    val cautionOnPass: Color,
     val panel: Color,
     val onPanel: Color,
     val panelLine: Color,
@@ -57,7 +56,6 @@ val DarkPalette = PsychePalette(
     onAlert = Ink,
     danger = DangerLight,
     dangerOnPass = DangerDark,
-    cautionOnPass = Color(0xFF7A5B00),
     panel = Slate,
     onPanel = Color(0xFFFFFFFF),
     panelLine = Color(0xFF2A2F35),
@@ -82,7 +80,6 @@ val LightPalette = PsychePalette(
     onAlert = Ink,
     danger = DangerDark,
     dangerOnPass = DangerDark,
-    cautionOnPass = Color(0xFF7A5B00),
     panel = Color(0xFFF4F5F6),
     onPanel = Ink,
     panelLine = Color(0xFFD5D8DC),

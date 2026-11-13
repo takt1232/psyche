@@ -1,7 +1,7 @@
 # Psyche
 
-A personal Android app with a local-only Finance Tracker built as a monthly
-**Budget Pass** and a live activity board. It is set up for command-line
+A personal Android app with a local-only Finance Tracker built as a
+**Balance Pass** and a live activity board. It is set up for command-line
 development without Android Studio.
 
 The finance module is the first Psyche feature. It is intentionally single-owner:
@@ -10,22 +10,37 @@ and no analytics or cloud backup.
 
 ## What is in the build
 
-- Monthly cap with optional category allocations.
+- A live **net position** across active accounts and savings goals:
+  `cash + savings + prepaid card balance − credit card outstanding`.
+- A signed net number that can be positive or negative, with **MONEY** and
+  **OWED** beside it.
+- A debt-coverage indicator: whether the money on hand could settle every
+  active credit card today, or how much is short.
+- Calculated balances for every active account. Credit rows show the negative
+  balance, outstanding amount, limit, and available credit.
+- Cash, debit/e-wallet, and credit accounts, including credit limit and
+  outstanding.
+- Savings goals funded by transfers; goal money still counts in the net
+  position.
 - Expenses, income, and transfers in one local ledger.
-- A default Cash account at ₱0 that cannot be archived.
-- Cash, debit/e-wallet, and credit accounts, including credit limit and outstanding.
-- Expenses and transfers are limited to the source account's available cash or card credit.
-- Paying a credit card is a cash/debit transfer capped at the card's outstanding balance.
-- Savings goals funded by transfers from an account.
+- Card payments are transfers: they reduce cash and outstanding together, so
+  the net position does not change.
+- Archived accounts are excluded from totals; their history stays in the
+  record.
 - Quick capture from the yellow FAB.
-- A home-screen widget with the remaining budget and up to four custom one-tap buttons.
-- Custom one-tap transactions (label, amount, expense/income, account, category) that log instantly from the widget.
-- Transfers from the FAB capture sheet or the Accounts summary; contributions cannot exceed the goal or the source account's available money.
+- A home-screen widget with the net position and up to four custom one-tap
+  buttons.
+- Custom one-tap transactions (label, amount, expense/income, account, category)
+  that log instantly from the widget.
+- Activity edit/delete with undo, month switching, filters, and a running net
+  after each row.
+- Expense categories as optional labels; there is no monthly cap or category
+  allocation.
 - System, light, or dark appearance in Settings; text size follows Android.
-- Activity edit/delete with undo, month switching, filters, and running budget left.
 - Room persistence on the phone.
 
-The old journaling scaffold and in-memory repository have been removed.
+The old journaling scaffold, in-memory repository, and budget/cap feature have
+been removed.
 
 ## One-tap widget
 
@@ -33,9 +48,10 @@ The old journaling scaffold and in-memory repository have been removed.
 2. Tap **Add widget** there, or long-press the home screen and open
    **Widgets → Psyche**.
 3. Tap a preset on the widget to log it immediately. The widget reprints the
-   remaining budget; the new entry appears as the lit row when the app opens.
+   net position and money/owed line; the new entry appears as the lit row when
+   the app opens.
 
-The widget uses the fixed dark Budget Pass palette so it stays legible on any
+The widget uses the fixed dark Balance Pass palette so it stays legible on any
 wallpaper. An expense preset the source account cannot cover is marked **LOW**
 and turns danger-red; tapping it reports the exact shortfall instead of logging.
 The repository still refuses the overdraw as the final guard. Credit presets
@@ -84,12 +100,16 @@ If more than one device is connected, pass `-Serial <id>` (from `adb devices`):
 .\build.cmd -Install -Serial 192.168.1.50:41234
 ```
 
+Wireless debugging on Android 11+ can expose an mDNS serial containing spaces,
+such as `adb-... (2)._adb-tls-connect._tcp`. The build helper accepts that serial
+as well.
+
 The build helper checks `JAVA_HOME`, fails on a Gradle or `adb` error, and prints
 the APK path and size after a successful build. `build.cmd` is a wrapper around
 `build.ps1`, so it works from `cmd.exe`, PowerShell, or by double-clicking.
 
 `adb install -r` preserves the Room database. To exercise the true first-run
-experience (empty pass, “Set your cap”), clear app storage first:
+experience (zero balance and the setup panel), clear app storage first:
 
 ```powershell
 adb shell pm clear com.psyche.app
@@ -100,10 +120,11 @@ ddmlib sometimes times out waiting for the device even though the APK installs f
 
 ## First run
 
-1. Set a monthly cap.
-2. Open the default Cash account and set its opening balance to the real cash you hold.
-3. Optionally add categories and allocate part of the cap.
-4. Add goals or a credit account later from their tabs.
+1. Open the default Cash account and set its opening balance to the real cash
+   you hold.
+2. Optionally add a credit account and enter its current outstanding balance.
+3. Add categories only if you want labels on expenses.
+4. Add goals or more accounts later from the Accounts tab.
 
 No amounts are prefilled. The default Cash account starts at ₱0 and cannot be
 archived. After setup, create one-tap actions in Settings (or the Home strip),
@@ -118,6 +139,8 @@ Widget taps log immediately; the FAB remains the fallback capture path.
 - Uninstalling or clearing app data removes the ledger permanently.
 - The widget is a launcher surface only. It reads the local Room ledger and logs
   through a manifest broadcast receiver; it does not add network access.
+- The version 1.1 database migration drops the retired budget and allocation
+  tables. Accounts, entries, goals, one-tap actions, and settings are preserved.
 
 ## Project structure
 
@@ -145,6 +168,11 @@ app/src/main/java/com/psyche/app/
 │   ├── sheets/
 │   └── theme/
 └── util/
+    ├── Formats.kt
+    ├── LedgerMath.kt
+    ├── Money.kt
+    ├── MonthMath.kt
+    └── PositionMath.kt
 ```
 
 The visual system is documented in [DESIGN.md](DESIGN.md); the product truth is in
@@ -154,8 +182,13 @@ The visual system is documented in [DESIGN.md](DESIGN.md); the product truth is 
 ## Unit tests
 
 The project has a JUnit 4 / Truth / Turbine / `kotlinx-coroutines-test` test
-classpath. `FinanceRepositoryQuickTransactionTest` covers one-tap logging, the
-four-slot limit, and the account-archive guard.
+classpath.
+
+- `PositionMathTest` covers net position, debt coverage, card payments, goal
+  contributions, negative net, and archived-account exclusion.
+- `LedgerMathTest` covers the running net in the activity board.
+- `FinanceRepositoryQuickTransactionTest` covers one-tap logging, the four-slot
+  limit, and the account-archive guard.
 
 ```powershell
 .\gradlew.bat testDebugUnitTest
