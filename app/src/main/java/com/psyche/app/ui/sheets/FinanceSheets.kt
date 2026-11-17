@@ -467,7 +467,13 @@ fun AccountEditorSheet(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            AccountType.entries.forEach { option ->
+            AccountType.entries
+                .filter {
+                    it == AccountType.CASH ||
+                        it == AccountType.DEBIT_EWALLET ||
+                        it == AccountType.CREDIT
+                }
+                .forEach { option ->
                 ChoiceChip(
                     label = option.label,
                     selected = option == type,
@@ -488,6 +494,10 @@ fun AccountEditorSheet(
                     AccountType.CASH -> "Physical wallet. Counts in your money."
                     AccountType.DEBIT_EWALLET -> "Bank, ATM, or e-wallet. Counts in your money."
                     AccountType.CREDIT -> "Spending adds to the card's outstanding balance. Paying the card is a transfer."
+                    AccountType.LOAN -> "Manage loans from the Debts tab."
+                    AccountType.BNPL -> "Manage installments from the Debts tab."
+                    AccountType.INFORMAL_DEBT -> "Manage informal debt from the Debts tab."
+                    AccountType.RECEIVABLE -> "Manage money owed to you from the Debts tab."
                 }
             },
             style = MaterialTheme.typography.bodySmall,
@@ -787,7 +797,7 @@ fun TransferSheet(
 ) {
     val palette = LocalPsychePalette.current
     val scope = rememberCoroutineScope()
-    val fromAccounts = accounts.filter { it.type != AccountType.CREDIT }
+    val fromAccounts = accounts.filter { it.type.isLiquid }
     val initialFrom = lastAccountId?.takeIf { id -> fromAccounts.any { it.id == id } }
         ?: fromAccounts.firstOrNull()?.id
         ?: -1L
@@ -795,8 +805,12 @@ fun TransferSheet(
     var fromId by rememberSaveable { mutableStateOf(initialFrom) }
     var toId by rememberSaveable {
         mutableStateOf(
-            accounts.firstOrNull { it.id != initialFrom && it.type != AccountType.CREDIT }?.id
-                ?: accounts.firstOrNull { it.id != initialFrom }?.id
+            accounts.firstOrNull {
+                it.id != initialFrom && !it.isLiability && !it.type.isReceivable
+            }?.id
+                ?: accounts.firstOrNull {
+                    it.id != initialFrom && !it.type.isReceivable
+                }?.id
                 ?: -1L,
         )
     }
@@ -809,8 +823,8 @@ fun TransferSheet(
     val availableCents = balances.firstOrNull { it.account.id == fromId }
         ?.availableToMoveCents
         ?: 0L
-    val cardPayment = from != null && to?.type == AccountType.CREDIT
-    val outstandingCents = if (cardPayment) {
+    val liabilityPayment = from != null && to?.isLiability == true
+    val outstandingCents = if (liabilityPayment) {
         balances.firstOrNull { it.account.id == toId }?.outstandingCents ?: 0L
     } else {
         null
@@ -818,10 +832,10 @@ fun TransferSheet(
     val maxCents = outstandingCents?.let { minOf(availableCents, it) } ?: availableCents
     val amountError = when {
         error != null -> error
-        cardPayment && outstandingCents != null && outstandingCents <= 0L -> {
-            "This card has no outstanding balance to pay."
+        liabilityPayment && outstandingCents != null && outstandingCents <= 0L -> {
+            "This debt has no outstanding balance to pay."
         }
-        cardPayment && outstandingCents != null && amountParsed != null &&
+        liabilityPayment && outstandingCents != null && amountParsed != null &&
             amountParsed > outstandingCents -> {
             "Only ${Money.formatPeso(outstandingCents)} is outstanding on ${to.name}."
         }
@@ -832,25 +846,25 @@ fun TransferSheet(
         else -> null
     }
     val canMove = fromAccounts.isNotEmpty() &&
-        accounts.any { it.id != fromId } &&
+        accounts.any { it.id != fromId && !it.type.isReceivable } &&
         from != null &&
         to != null &&
         from.id != to.id
     val canSave = canMove &&
         amountParsed != null &&
         amountParsed <= maxCents &&
-        (!cardPayment || (outstandingCents ?: 0L) > 0L)
+        (!liabilityPayment || (outstandingCents ?: 0L) > 0L)
 
     SheetFrame(onDismiss = onDismiss) {
         SheetHeader(
-            eyebrow = if (cardPayment) "Cash to card" else "Between accounts",
-            title = if (cardPayment) "PAY CARD" else "MOVE MONEY",
+            eyebrow = if (liabilityPayment) "Cash to debt" else "Between accounts",
+            title = if (liabilityPayment) "PAY DEBT" else "MOVE MONEY",
             onClose = onDismiss,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = if (cardPayment) {
-                "Pay down the card's outstanding balance. This is a transfer, not a new expense."
+            text = if (liabilityPayment) {
+                "Pay down principal. Use the Debts tab when the payment includes interest."
             } else {
                 "Choose where the money comes from and where it lands. Both account balances update together."
             },
@@ -884,7 +898,7 @@ fun TransferSheet(
         Spacer(Modifier.height(6.dp))
         if (fromAccounts.isEmpty()) {
             Text(
-                text = "Add a cash or debit account to move money. Cards can only receive a payment.",
+                text = "Add a cash or bank account to move money. Debts can only receive a payment.",
                 style = MaterialTheme.typography.bodySmall,
                 color = palette.danger,
             )
@@ -902,7 +916,9 @@ fun TransferSheet(
                         onClick = {
                             fromId = option.id
                             if (toId == option.id) {
-                                toId = accounts.firstOrNull { it.id != option.id }?.id ?: -1L
+                                toId = accounts.firstOrNull {
+                                    it.id != option.id && !it.type.isReceivable
+                                }?.id ?: -1L
                             }
                             error = null
                         },
@@ -917,7 +933,7 @@ fun TransferSheet(
                 color = palette.faint,
                 style = PassType.monoLabel.copy(letterSpacing = 1.1.sp),
             )
-            if (cardPayment && outstandingCents != null) {
+            if (liabilityPayment && outstandingCents != null) {
                 Spacer(Modifier.weight(1f))
                 MonoText(
                     text = "${Money.formatPeso(outstandingCents)} OUTSTANDING",
@@ -933,9 +949,12 @@ fun TransferSheet(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            accounts.filter { it.id != fromId }.forEach { option ->
+            accounts.filter { it.id != fromId && !it.type.isReceivable }.forEach { option ->
                 ChoiceChip(
-                    label = if (option.type == AccountType.CREDIT) "Pay ${option.name}" else option.name,
+                    label = when {
+                        option.isLiability -> "Pay ${option.name}"
+                        else -> option.name
+                    },
                     selected = option.id == toId,
                     onClick = {
                         toId = option.id
@@ -944,10 +963,10 @@ fun TransferSheet(
                 )
             }
         }
-        if (fromAccounts.isEmpty() || accounts.size < 2) {
+        if (fromAccounts.isEmpty() || accounts.none { it.id != fromId && !it.type.isReceivable }) {
             Spacer(Modifier.height(10.dp))
             Text(
-                text = "Add a second cash, debit, or card account before moving money.",
+                text = "Add a second cash, bank, or debt account before moving money.",
                 style = MaterialTheme.typography.bodySmall,
                 color = palette.danger,
             )
@@ -956,8 +975,8 @@ fun TransferSheet(
         NoteField(value = note, onValueChange = { note = it })
         Spacer(Modifier.height(8.dp))
         Text(
-            text = if (cardPayment) {
-                "Recorded as a card payment. It reduces cash and the card's outstanding balance; your net position does not change."
+            text = if (liabilityPayment) {
+                "Recorded as principal only. It reduces cash and the debt; your net position does not change. Use the Debts tab when interest is included."
             } else {
                 "This is recorded as a transfer. It moves money between accounts and does not change your net position."
             },
@@ -967,9 +986,9 @@ fun TransferSheet(
         Spacer(Modifier.height(18.dp))
         PrimaryAction(
             text = when {
-                saving && cardPayment -> "Paying\u2026"
+                saving && liabilityPayment -> "Paying\u2026"
                 saving -> "Moving\u2026"
-                cardPayment -> "Pay card"
+                liabilityPayment -> "Pay debt"
                 else -> "Move money"
             },
             onClick = {
@@ -1215,10 +1234,14 @@ fun EntryDetailSheet(
     var accountId by rememberSaveable { mutableStateOf(entry.accountId) }
     var transferAccountId by rememberSaveable { mutableStateOf(entry.transferAccountId) }
     var categoryId by rememberSaveable { mutableStateOf(entry.categoryId ?: 0L) }
+    var interest by rememberSaveable {
+        mutableStateOf(if (entry.interestCents > 0) Money.inputValue(entry.interestCents) else "")
+    }
     var occurredAt by rememberSaveable { mutableStateOf(entry.occurredAt) }
     var error by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     val amountParsed = Money.parse(amount)
+    val interestParsed = if (interest.isBlank()) 0L else Money.parse(interest)
     val isGoalContribution = entry.goalId != null
     val isAccountTransfer = entry.type == TransactionType.TRANSFER && !isGoalContribution
     val accounts = state.snapshot.accounts.filter {
@@ -1229,6 +1252,8 @@ fun EntryDetailSheet(
     }
     val account = accounts.firstOrNull { it.id == accountId }
     val category = categories.firstOrNull { it.id == categoryId }
+    val transferAccount = accounts.firstOrNull { it.id == transferAccountId }
+    val isDebtPayment = isAccountTransfer && transferAccount?.isLiability == true
 
     LaunchedEffect(entry.id) {
         viewModel.markSeen(entry)
@@ -1251,7 +1276,14 @@ fun EntryDetailSheet(
                 Column(Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = if (row.isCardPayment) "CARD PAYMENT" else typeLabel(entry.type),
+                            text = when {
+                                row.isCardPayment -> "CARD PAYMENT"
+                                row.isDebtPayment -> "DEBT PAYMENT"
+                                row.isReceivableCollection -> "COLLECTION"
+                                row.isLoanDrawdown -> "BORROWED"
+                                row.destinationType?.isReceivable == true -> "LENT"
+                                else -> typeLabel(entry.type)
+                            },
                             style = PassType.monoLabel.copy(fontSize = 8.sp, letterSpacing = 1.2.sp),
                             color = palette.passMuted,
                         )
@@ -1287,6 +1319,23 @@ fun EntryDetailSheet(
                         value = row.accountName,
                         valueColor = palette.passInk,
                     )
+                    if (entry.interestCents > 0) {
+                        KeyValueRow(
+                            label = "PRINCIPAL",
+                            value = Money.formatPeso(entry.amountCents),
+                            valueColor = palette.passInk,
+                        )
+                        KeyValueRow(
+                            label = "INTEREST",
+                            value = Money.formatPeso(entry.interestCents),
+                            valueColor = palette.passInk,
+                        )
+                        KeyValueRow(
+                            label = "TOTAL PAID",
+                            value = Money.formatPeso(entry.totalCashCents),
+                            valueColor = palette.passInk,
+                        )
+                    }
                     if (entry.type == TransactionType.EXPENSE) {
                         KeyValueRow(
                             label = "CATEGORY",
@@ -1358,7 +1407,7 @@ fun EntryDetailSheet(
             )
         } else {
             MoneyField(
-                label = "Amount",
+                label = if (isDebtPayment) "Principal" else "Amount",
                 value = amount,
                 onValueChange = {
                     amount = it
@@ -1369,7 +1418,25 @@ fun EntryDetailSheet(
                 } else {
                     null
                 },
+                supporting = if (isDebtPayment) "This is the principal portion." else null,
             )
+            if (isDebtPayment) {
+                Spacer(Modifier.height(10.dp))
+                MoneyField(
+                    label = "Interest portion (optional)",
+                    value = interest,
+                    onValueChange = {
+                        interest = it
+                        error = null
+                    },
+                    supporting = "Interest is an expense; principal is a transfer.",
+                    error = if (interest.isNotBlank() && interestParsed == null) {
+                        "Use a valid interest amount."
+                    } else {
+                        null
+                    },
+                )
+            }
             Spacer(Modifier.height(10.dp))
             NoteField(
                 value = description,
@@ -1560,6 +1627,7 @@ fun EntryDetailSheet(
                                 } else {
                                     null
                                 },
+                                interestCents = if (isDebtPayment) interestParsed ?: 0L else 0L,
                                 occurredAt = occurredAt,
                                 needsAttention = false,
                             ),
@@ -1571,6 +1639,7 @@ fun EntryDetailSheet(
                 enabled = !saving &&
                     amountParsed != null &&
                     account != null &&
+                    (interest.isBlank() || interestParsed != null) &&
                     (!isAccountTransfer || (transferAccountId != null && transferAccountId != account.id)),
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -1591,12 +1660,17 @@ private fun typeLabel(type: TransactionType): String = when (type) {
 }
 
 private fun signedAmount(entry: LedgerEntry): String {
+    val amount = if (entry.type == TransactionType.TRANSFER) {
+        entry.totalCashCents
+    } else {
+        entry.amountCents
+    }
     val prefix = when (entry.type) {
         TransactionType.EXPENSE -> "\u2212"
         TransactionType.INCOME -> "+"
         TransactionType.TRANSFER -> "\u21C4"
     }
-    return "$prefix${Money.formatPeso(entry.amountCents)}"
+    return "$prefix${Money.formatPeso(amount)}"
 }
 
 @Composable

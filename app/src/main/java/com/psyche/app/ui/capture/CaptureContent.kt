@@ -80,7 +80,7 @@ fun CaptureContent(
     val palette = LocalPsychePalette.current
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    val accounts = state.snapshot.activeAccounts
+    val accounts = state.snapshot.activeSpendAccounts
     val categories = state.snapshot.activeCategories
 
     var rawAmount by rememberSaveable { mutableStateOf("") }
@@ -104,7 +104,7 @@ fun CaptureContent(
     val selectedCategory = categories.firstOrNull { it.id == categoryId }
     val availableCents = state.accountBalances
         .firstOrNull { it.account.id == accountId }
-        ?.availableToMoveCents
+        ?.availableToSpendCents
         ?: 0L
     val amountCents = Money.parse(rawAmount)
     val exceedsAvailable = type == CaptureType.EXPENSE &&
@@ -112,7 +112,7 @@ fun CaptureContent(
         amountCents > availableCents &&
         selectedAccount != null
     val availabilityError = if (exceedsAvailable) {
-        if (selectedAccount.type == com.psyche.app.data.AccountType.CREDIT) {
+        if (selectedAccount.isCredit) {
             "Only ${Money.formatPeso(availableCents)} of credit is available on ${selectedAccount.name}."
         } else {
             "Only ${Money.formatPeso(availableCents)} is available in ${selectedAccount.name}."
@@ -155,7 +155,7 @@ fun CaptureContent(
             return
         }
         if (type == CaptureType.EXPENSE && parsed > availableCents) {
-            error = if (account.type == com.psyche.app.data.AccountType.CREDIT) {
+            error = if (account.isCredit) {
                 "Only ${Money.formatPeso(availableCents)} of credit is available on ${account.name}."
             } else {
                 "Only ${Money.formatPeso(availableCents)} is available in ${account.name}."

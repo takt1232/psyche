@@ -293,7 +293,7 @@ fun ActivityBoardRow(
             }
             Spacer(Modifier.width(4.dp))
             Text(
-                text = Money.formatTable(row.entry.amountCents, row.marker),
+                text = Money.formatTable(row.displayAmountCents, row.marker),
                 style = PassType.monoData.copy(
                     fontSize = 10.sp,
                     fontWeight = if (lit) FontWeight.Bold else FontWeight.Medium,

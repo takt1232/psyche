@@ -13,6 +13,7 @@ object Formats {
     private val monthFormatter = DateTimeFormatter.ofPattern("MMMM", locale)
     private val monthShortFormatter = DateTimeFormatter.ofPattern("MMM", locale)
     private val dayFormatter = DateTimeFormatter.ofPattern("d MMM", locale)
+    private val dayYearFormatter = DateTimeFormatter.ofPattern("d MMM yy", locale)
     private val fullDayFormatter = DateTimeFormatter.ofPattern("d MMM yyyy", locale)
     private val weekdayDayFormatter = DateTimeFormatter.ofPattern("EEE, d MMM", locale)
     private val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", locale)
@@ -42,6 +43,18 @@ object Formats {
 
     fun shortDate(date: LocalDate): String =
         date.format(dayFormatter).uppercase(locale)
+
+    /** Compact date with the year, for long schedules. */
+    fun shortDateWithYear(
+        instant: Long,
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): String = Instant.ofEpochMilli(instant)
+        .atZone(zone)
+        .format(dayYearFormatter)
+        .uppercase(locale)
+
+    fun shortDateWithYear(date: LocalDate): String =
+        date.format(dayYearFormatter).uppercase(locale)
 
     fun fullDate(instant: Long, zone: ZoneId = ZoneId.systemDefault()): String =
         Instant.ofEpochMilli(instant).atZone(zone).format(fullDayFormatter)

@@ -29,7 +29,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.psyche.app.data.Account
-import com.psyche.app.data.AccountType
 import com.psyche.app.data.QuickTransaction
 import com.psyche.app.data.TransactionType
 import com.psyche.app.ui.FinanceUiState
@@ -104,7 +103,10 @@ fun HomeScreen(
                     )
                 }
             }
-            if (state.accountBalances.isNotEmpty() || state.goals.isNotEmpty()) {
+            if (
+                state.accountBalances.any { it.account.type.isLiquid || it.account.isCredit } ||
+                state.goals.isNotEmpty()
+            ) {
                 item {
                     Spacer(Modifier.height(24.dp))
                     AccountsSection(
@@ -195,9 +197,9 @@ private fun FirstRunPanel(
     onAddCard: () -> Unit,
 ) {
     val palette = LocalPsychePalette.current
-    val startingAccount = state.snapshot.activeAccounts
+    val startingAccount = state.snapshot.activeLiquidAccounts
         .firstOrNull { it.isDefault }
-        ?: state.snapshot.activeAccounts.firstOrNull()
+        ?: state.snapshot.activeLiquidAccounts.firstOrNull()
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -261,6 +263,7 @@ private fun AccountsSection(
     onEditAccount: (Account) -> Unit,
 ) {
     val palette = LocalPsychePalette.current
+    val visible = balances.filter { it.account.type.isLiquid || it.account.isCredit }
     Column(Modifier.fillMaxWidth()) {
         SectionHeading(
             title = "Accounts",
@@ -276,16 +279,16 @@ private fun AccountsSection(
             },
         )
         Spacer(Modifier.height(2.dp))
-        if (balances.isEmpty()) {
+        if (visible.isEmpty()) {
             EmptyPanel(
                 title = "No accounts yet",
-                body = "Add the cash, debit, e-wallet, or credit account you actually use.",
+                body = "Add the cash, debit, e-wallet, or credit card you actually use.",
                 actionLabel = "Add account",
                 onAction = onAccounts,
                 eyebrow = "NO ACCOUNTS",
             )
         } else {
-            balances.forEach { balance ->
+            visible.forEach { balance ->
                 HomeAccountRow(
                     balance = balance,
                     onClick = { onEditAccount(balance.account) },
@@ -322,7 +325,7 @@ private fun HomeAccountRow(
 ) {
     val palette = LocalPsychePalette.current
     val account = balance.account
-    val credit = account.type == AccountType.CREDIT
+    val credit = account.isCredit
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -504,7 +507,7 @@ private fun OneTapSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 quickTransactions.take(4).forEach { quick ->
-                    val available = balancesById[quick.accountId]?.availableToMoveCents ?: 0L
+                    val available = balancesById[quick.accountId]?.availableToSpendCents ?: 0L
                     val insufficient = quick.type == TransactionType.EXPENSE &&
                         quick.amountCents > available
                     QuickActionCard(

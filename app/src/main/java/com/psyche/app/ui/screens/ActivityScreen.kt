@@ -173,9 +173,13 @@ fun ActivityScreen(
                         ActivityDayHeader(
                             date = date,
                             today = state.today,
-                            daySpentCents = rows
-                                .filter { it.entry.type == TransactionType.EXPENSE }
-                                .sumOf { it.entry.amountCents },
+                            daySpentCents = rows.sumOf { row ->
+                                when (row.entry.type) {
+                                    TransactionType.EXPENSE -> row.entry.amountCents
+                                    TransactionType.TRANSFER -> row.entry.interestCents
+                                    TransactionType.INCOME -> 0L
+                                }
+                            },
                         )
                     }
                     items(rows.size, key = { index -> "entry-${rows[index].entry.id}" }) { index ->
@@ -191,7 +195,7 @@ fun ActivityScreen(
             item {
                 Spacer(Modifier.height(28.dp))
                 MonoText(
-                    text = "RUNNING NET IS THE SAME ACTIVE-ACCOUNT POSITION AS THE PASS. CARD PAYMENTS, TRANSFERS, AND GOAL CONTRIBUTIONS DO NOT CHANGE IT.",
+                    text = "RUNNING NET IS THE SAME ACTIVE-ACCOUNT POSITION AS THE PASS. CARD AND DEBT PRINCIPAL PAYMENTS, TRANSFERS, AND GOAL CONTRIBUTIONS DO NOT CHANGE IT; INTEREST DOES.",
                     color = palette.faint,
                     style = PassType.monoMicro.copy(fontSize = 7.sp, letterSpacing = 0.5.sp),
                     maxLines = 3,

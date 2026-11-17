@@ -13,6 +13,7 @@ private data class LedgerPart(
     val accounts: List<AccountEntity>,
     val categories: List<CategoryEntity>,
     val entries: List<LedgerEntryEntity>,
+    val debtTerms: List<DebtTermsEntity>,
     val settings: Map<String, String>,
 )
 
@@ -29,12 +30,14 @@ class FinanceRepository(
             dao.observeAccounts(),
             dao.observeCategories(),
             dao.observeEntries(),
+            dao.observeDebtTerms(),
             dao.observeSettings(),
-        ) { accounts, categories, entries, settings ->
+        ) { accounts, categories, entries, debtTerms, settings ->
             LedgerPart(
                 accounts = accounts,
                 categories = categories,
                 entries = entries,
+                debtTerms = debtTerms,
                 settings = settings.associate { it.key to it.value },
             )
         },
@@ -47,6 +50,7 @@ class FinanceRepository(
             entries = ledger.entries.map { it.toDomain() },
             goals = goals.map { it.toDomain() },
             quickTransactions = quickTransactions.map { it.toDomain() },
+            debtTerms = ledger.debtTerms.map { it.toDomain() },
             settings = FinanceSettings.from(ledger.settings),
         )
     }
@@ -60,12 +64,14 @@ class FinanceRepository(
         lightRow: Boolean = true,
     ): Long = writeMutex.withLock {
         val source = accountBalanceFor(accountId)
-        require(amountCents <= source.availableToMoveCents) {
-            if (source.account.type == AccountType.CREDIT) {
-                "Only ${Money.formatPeso(source.availableToMoveCents)} of credit is available on ${source.account.name}."
-            } else {
-                "Only ${Money.formatPeso(source.availableToMoveCents)} is available in ${source.account.name}."
-            }
+        require(!source.account.type.isReceivable) {
+            "Money owed to you cannot fund an expense."
+        }
+        require(!source.account.isScheduledDebt) {
+            "Scheduled debts cannot fund everyday expenses."
+        }
+        require(amountCents <= source.availableToSpendCents) {
+            availableMessage(source, source.availableToSpendCents)
         }
         addEntry(
             type = TransactionType.EXPENSE,
@@ -86,17 +92,23 @@ class FinanceRepository(
         description: String,
         occurredAt: Long = now(),
         lightRow: Boolean = true,
-    ): Long = addEntry(
-        type = TransactionType.INCOME,
-        amountCents = amountCents,
-        accountId = accountId,
-        categoryId = null,
-        transferAccountId = null,
-        goalId = null,
-        description = description,
-        occurredAt = occurredAt,
-        lightRow = lightRow,
-    )
+    ): Long = writeMutex.withLock {
+        val destination = accountBalanceFor(accountId)
+        require(!destination.account.type.isReceivable) {
+            "Money owed to you cannot receive income. Collect it instead."
+        }
+        addEntry(
+            type = TransactionType.INCOME,
+            amountCents = amountCents,
+            accountId = accountId,
+            categoryId = null,
+            transferAccountId = null,
+            goalId = null,
+            description = description,
+            occurredAt = occurredAt,
+            lightRow = lightRow,
+        )
+    }
 
     suspend fun addTransfer(
         amountCents: Long,
@@ -114,30 +126,43 @@ class FinanceRepository(
             "Choose two different accounts."
         }
         val source = accountBalanceFor(fromAccountId)
+        require(source.account.type.canFundTransfers) {
+            "Choose a cash, bank, or receivable account."
+        }
         require(amountCents <= source.availableToMoveCents) {
-            if (source.account.type == AccountType.CREDIT) {
-                "Only ${Money.formatPeso(source.availableToMoveCents)} of credit is available on ${source.account.name}."
-            } else {
-                "Only ${Money.formatPeso(source.availableToMoveCents)} is available in ${source.account.name}."
-            }
+            availableMessage(source, source.availableToMoveCents)
         }
         if (goalId != null) {
+            require(source.account.type.isLiquid) {
+                "Contribute to a goal from cash or a bank account."
+            }
             val remaining = goalRemaining(goalId)
             require(amountCents <= remaining) {
                 "This goal only needs ${Money.formatPeso(remaining)} more. Raise the target to save more."
             }
         }
         if (toAccountId != null) {
-            require(source.account.type != AccountType.CREDIT) {
-                "A card payment must come from cash or debit."
-            }
             val destination = accountBalanceFor(toAccountId)
-            if (destination.account.type == AccountType.CREDIT) {
+            require(!(source.account.isLiability && destination.account.isLiability)) {
+                "Choose a cash or bank account to receive a drawdown."
+            }
+            require(!(source.account.isLiability && destination.account.type.isReceivable)) {
+                "Money from a debt cannot fund money you lend."
+            }
+            require(!(source.account.type.isReceivable && destination.account.isLiability)) {
+                "Collect the money before using it to pay a debt."
+            }
+            if (destination.account.isLiability) {
                 require(destination.outstandingCents > 0) {
-                    "This card has no outstanding balance to pay."
+                    "This debt has no outstanding balance to pay."
                 }
                 require(amountCents <= destination.outstandingCents) {
                     "Only ${Money.formatPeso(destination.outstandingCents)} is outstanding on ${destination.account.name}."
+                }
+            }
+            if (source.account.type.isReceivable) {
+                require(destination.account.type.isLiquid) {
+                    "Collecting must land in cash or a bank account."
                 }
             }
         }
@@ -174,6 +199,338 @@ class FinanceRepository(
         )
     }
 
+    /**
+     * Records a debt payment split into principal and interest. The principal is
+     * a transfer, the interest is an expense, and only the interest moves the
+     * net position. An interest-only payment is stored as an expense.
+     */
+    suspend fun addDebtPayment(
+        debtAccountId: Long,
+        fromAccountId: Long,
+        principalCents: Long,
+        interestCents: Long,
+        description: String,
+        occurredAt: Long = now(),
+        lightRow: Boolean = true,
+    ): Long = writeMutex.withLock {
+        val debt = accountBalanceFor(debtAccountId)
+        require(debt.account.isLiability) { "Choose a debt to pay." }
+        require(debt.outstandingCents > 0) { "This debt has no outstanding balance." }
+        require(principalCents in 0..debt.outstandingCents) {
+            "Only ${Money.formatPeso(debt.outstandingCents)} is outstanding on ${debt.account.name}."
+        }
+        require(interestCents in 0..Money.MAX_AMOUNT_CENTS) { "Enter a valid interest amount." }
+        val total = principalCents + interestCents
+        require(total in 1..Money.MAX_AMOUNT_CENTS) {
+            "Enter an amount between \u20B10.01 and \u20B1999,999.99."
+        }
+        val source = accountBalanceFor(fromAccountId)
+        require(source.account.type.isLiquid) {
+            "A debt payment must come from cash or a bank account."
+        }
+        require(total <= source.availableToMoveCents) {
+            availableMessage(source, source.availableToMoveCents)
+        }
+        if (principalCents > 0) {
+            addEntry(
+                type = TransactionType.TRANSFER,
+                amountCents = principalCents,
+                accountId = fromAccountId,
+                categoryId = null,
+                transferAccountId = debtAccountId,
+                goalId = null,
+                description = description,
+                occurredAt = occurredAt,
+                lightRow = lightRow,
+                interestCents = interestCents,
+            )
+        } else {
+            addEntry(
+                type = TransactionType.EXPENSE,
+                amountCents = interestCents,
+                accountId = fromAccountId,
+                categoryId = null,
+                transferAccountId = null,
+                goalId = null,
+                description = description,
+                occurredAt = occurredAt,
+                lightRow = lightRow,
+            )
+        }
+    }
+
+    /**
+     * Creates a debt or receivable. The origin decides how the opening balance
+     * enters the ledger so a purchase, a cash borrowing, and an existing balance
+     * never double count.
+     */
+    suspend fun addDebt(
+        name: String,
+        type: AccountType,
+        amountCents: Long,
+        originalPrincipalCents: Long,
+        scheduleStartBalanceCents: Long = 0L,
+        downPaymentCents: Long = 0L,
+        annualRateBps: Int,
+        interestMethod: InterestMethod,
+        termMonths: Int,
+        firstDueAt: Long,
+        counterparty: String?,
+        origin: DebtOrigin,
+        fundingAccountId: Long?,
+        existingAccountId: Long? = null,
+        categoryId: Long?,
+        description: String = "",
+        occurredAt: Long = now(),
+    ): Long = writeMutex.withLock {
+        require(type.isLiability || type.isReceivable) { "Choose a debt type." }
+        require(type != AccountType.CREDIT) { "Add credit cards from Accounts." }
+        val clean = name.trim()
+        require(clean.isNotEmpty()) { "Name the debt." }
+        require(amountCents in 1..Money.MAX_DEBT_CENTS) {
+            "Enter a debt amount up to \u20B1999,999,999.99."
+        }
+        require(originalPrincipalCents in 0..Money.MAX_DEBT_CENTS) {
+            "Enter an original principal up to \u20B1999,999,999.99."
+        }
+        require(scheduleStartBalanceCents in 0..Money.MAX_DEBT_CENTS) {
+            "Enter a schedule amount up to \u20B1999,999,999.99."
+        }
+        require(downPaymentCents in 0..Money.MAX_DEBT_CENTS) {
+            "Enter a downpayment up to \u20B1999,999,999.99."
+        }
+        require(annualRateBps in 0..100_000) { "Enter a valid annual rate." }
+        if (type.hasSchedule) {
+            require(termMonths in 1..600) { "Enter a term between 1 and 600 months." }
+            require(firstDueAt > 0) { "Choose the first due date." }
+        }
+        require(occurredAt > 0) { "Choose a valid date." }
+        when (origin) {
+            DebtOrigin.PURCHASE -> require(type == AccountType.BNPL) {
+                "Only an installment uses a new purchase."
+            }
+
+            DebtOrigin.BORROWED -> require(type.isLiability && !type.isReceivable) {
+                "Only a debt can be borrowed."
+            }
+
+            DebtOrigin.LENT -> require(type.isReceivable) {
+                "Choose money owed to you to record a loan you gave."
+            }
+
+            DebtOrigin.IN_PROGRESS -> require(type.hasSchedule) {
+                "Only a loan or installment can be already in progress."
+            }
+
+            DebtOrigin.EXISTING -> Unit
+        }
+        if (origin != DebtOrigin.EXISTING && origin != DebtOrigin.IN_PROGRESS) {
+            require(fundingAccountId != null || origin == DebtOrigin.PURCHASE) {
+                "Choose the account for the money."
+            }
+        }
+        val existingBalance = existingAccountId?.let { accountBalanceFor(it) }
+        if (existingBalance != null) {
+            require(existingBalance.account.isLiability && !existingBalance.account.isScheduledDebt) {
+                "Choose an active credit or informal-debt account to convert."
+            }
+            require(existingBalance.outstandingCents > 0) {
+                "This account has no outstanding balance to convert."
+            }
+            require(origin == DebtOrigin.IN_PROGRESS || origin == DebtOrigin.EXISTING) {
+                "Only an existing balance can use an existing account."
+            }
+            if (existingBalance.account.isCredit) {
+                require(dao.activeQuickTransactionsForAccount(existingBalance.account.id).isEmpty()) {
+                    "This card is used by a one-tap action. Archive or edit that action first."
+                }
+            }
+        }
+        val effectiveAmount = existingBalance?.outstandingCents ?: amountCents
+        if (existingBalance != null && origin == DebtOrigin.IN_PROGRESS) {
+            require(amountCents == existingBalance.outstandingCents) {
+                "The selected account balance is ${Money.formatPeso(existingBalance.outstandingCents)}, " +
+                    "but the plan calculates ${Money.formatPeso(amountCents)}. " +
+                    "Adjust the payments made or use a new account."
+            }
+        }
+        val scheduleStart = scheduleStartBalanceCents.takeIf { it > 0 } ?: effectiveAmount
+        require(scheduleStart >= effectiveAmount) {
+            "The financed amount must be at least the remaining balance."
+        }
+        if (origin == DebtOrigin.IN_PROGRESS) {
+            require(scheduleStart > effectiveAmount) {
+                "An in-progress plan needs a financed amount above the remaining balance."
+            }
+        }
+        val fundingBalance = when (origin) {
+            DebtOrigin.BORROWED -> {
+                val destination = accountBalanceFor(requireNotNull(fundingAccountId))
+                require(destination.account.type.isLiquid) {
+                    "Loan proceeds must land in cash or a bank account."
+                }
+                destination
+            }
+
+            DebtOrigin.LENT -> {
+                val source = accountBalanceFor(requireNotNull(fundingAccountId))
+                require(source.account.type.isLiquid) {
+                    "Money you lend must come from cash or a bank account."
+                }
+                require(amountCents <= source.availableToMoveCents) {
+                    availableMessage(source, source.availableToMoveCents)
+                }
+                source
+            }
+
+            DebtOrigin.PURCHASE, DebtOrigin.EXISTING, DebtOrigin.IN_PROGRESS -> null
+        }
+
+        val accountId = if (existingBalance != null) {
+            dao.upsertAccount(
+                existingBalance.account.copy(
+                    name = clean,
+                    type = type,
+                    creditLimitCents = 0,
+                    lastFour = null,
+                    archived = false,
+                    isDefault = false,
+                ).toEntity(),
+            )
+            existingBalance.account.id
+        } else {
+            val opening = when {
+                origin == DebtOrigin.EXISTING && type.isLiability -> -effectiveAmount
+                origin == DebtOrigin.EXISTING && type.isReceivable -> effectiveAmount
+                origin == DebtOrigin.IN_PROGRESS -> -effectiveAmount
+                else -> 0L
+            }
+            val all = dao.allAccounts()
+            dao.upsertAccount(
+                AccountEntity(
+                    name = clean,
+                    type = type.storage,
+                    openingBalanceCents = opening,
+                    creditLimitCents = 0,
+                    lastFour = null,
+                    sortOrder = (all.maxOfOrNull { it.sortOrder } ?: -1) + 1,
+                    archived = false,
+                ),
+            )
+        }
+        if (type.isLiability || type.isReceivable) {
+            dao.upsertDebtTerms(
+                DebtTermsEntity(
+                    accountId = accountId,
+                    originalPrincipalCents = originalPrincipalCents.takeIf { it > 0 } ?: scheduleStart,
+                    annualRateBps = if (type.hasSchedule && interestMethod != InterestMethod.ZERO) {
+                        annualRateBps
+                    } else {
+                        0
+                    },
+                    interestMethod = if (type.hasSchedule) {
+                        interestMethod.storage
+                    } else {
+                        InterestMethod.ZERO.storage
+                    },
+                    termMonths = if (type.hasSchedule) termMonths else 0,
+                    firstDueAt = if (type.hasSchedule && firstDueAt > 0) firstDueAt else 0,
+                    paymentsPerYear = 12,
+                    scheduleStartBalanceCents = scheduleStart,
+                    scheduleStartAt = occurredAt,
+                    counterparty = counterparty?.trim()?.takeIf { it.isNotBlank() },
+                    downPaymentCents = downPaymentCents,
+                ),
+            )
+        }
+
+        val note = description.trim().ifBlank { clean }
+        when (origin) {
+            DebtOrigin.PURCHASE -> {
+                dao.insertLightingEntry(
+                    LedgerEntryEntity(
+                        type = TransactionType.EXPENSE.storage,
+                        amountCents = effectiveAmount,
+                        accountId = accountId,
+                        categoryId = categoryId,
+                        transferAccountId = null,
+                        goalId = null,
+                        description = note,
+                        occurredAt = occurredAt,
+                        createdAt = now(),
+                        needsAttention = true,
+                    ),
+                )
+            }
+
+            DebtOrigin.BORROWED -> {
+                val destinationId = requireNotNull(fundingBalance).account.id
+                dao.insertLightingEntry(
+                    LedgerEntryEntity(
+                        type = TransactionType.TRANSFER.storage,
+                        amountCents = effectiveAmount,
+                        accountId = accountId,
+                        categoryId = null,
+                        transferAccountId = destinationId,
+                        goalId = null,
+                        description = note,
+                        occurredAt = occurredAt,
+                        createdAt = now(),
+                        needsAttention = true,
+                    ),
+                )
+            }
+
+            DebtOrigin.LENT -> {
+                val sourceId = requireNotNull(fundingBalance).account.id
+                dao.insertLightingEntry(
+                    LedgerEntryEntity(
+                        type = TransactionType.TRANSFER.storage,
+                        amountCents = effectiveAmount,
+                        accountId = sourceId,
+                        categoryId = null,
+                        transferAccountId = accountId,
+                        goalId = null,
+                        description = note,
+                        occurredAt = occurredAt,
+                        createdAt = now(),
+                        needsAttention = true,
+                    ),
+                )
+            }
+
+            DebtOrigin.EXISTING, DebtOrigin.IN_PROGRESS -> Unit
+        }
+        return accountId
+    }
+
+    suspend fun updateDebt(account: Account, terms: DebtTerms?) {
+        val clean = account.name.trim()
+        require(clean.isNotEmpty()) { "Name the debt." }
+        require(account.type.isLiability || account.type.isReceivable) { "Choose a debt account." }
+        require(!account.isDefault) { "A debt cannot be the default account." }
+        dao.upsertAccount(
+            account.copy(
+                name = clean,
+                creditLimitCents = 0,
+                lastFour = null,
+                isDefault = false,
+            ).toEntity(),
+        )
+        if (terms != null) {
+            require(terms.termMonths in 0..600) { "Enter a term between 0 and 600 months." }
+            require(terms.annualRateBps in 0..100_000) { "Enter a valid annual rate." }
+            dao.upsertDebtTerms(terms.copy(accountId = account.id).toEntity())
+        }
+    }
+
+    private fun availableMessage(balance: AccountBalance, availableCents: Long): String =
+        if (balance.account.isCredit) {
+            "Only ${Money.formatPeso(availableCents)} of credit is available on ${balance.account.name}."
+        } else {
+            "Only ${Money.formatPeso(availableCents)} is available in ${balance.account.name}."
+        }
+
     private suspend fun addEntry(
         type: TransactionType,
         amountCents: Long,
@@ -184,9 +541,13 @@ class FinanceRepository(
         description: String,
         occurredAt: Long,
         lightRow: Boolean,
+        interestCents: Long = 0,
     ): Long {
         require(amountCents in 1..Money.MAX_AMOUNT_CENTS) {
             "Enter an amount between \u20B10.01 and \u20B1999,999.99."
+        }
+        require(interestCents in 0..Money.MAX_AMOUNT_CENTS) {
+            "Enter a valid interest amount."
         }
         require(accountId > 0) { "Choose an account." }
         require(occurredAt > 0) { "Choose a valid date." }
@@ -201,6 +562,7 @@ class FinanceRepository(
             occurredAt = occurredAt,
             createdAt = now(),
             needsAttention = lightRow,
+            interestCents = interestCents,
         )
         val id = if (lightRow) dao.insertLightingEntry(entry) else dao.insertEntry(entry)
         setSetting(SettingsKeys.LAST_ACCOUNT_ID, accountId.toString())
@@ -212,6 +574,9 @@ class FinanceRepository(
         require(entry.amountCents in 1..Money.MAX_AMOUNT_CENTS) {
             "Enter an amount between \u20B10.01 and \u20B1999,999.99."
         }
+        require(entry.interestCents in 0..Money.MAX_AMOUNT_CENTS) {
+            "Enter a valid interest amount."
+        }
         require(entry.accountId > 0) { "Choose an account." }
         require(entry.occurredAt > 0) { "Choose a valid date." }
         if (entry.type == TransactionType.TRANSFER) {
@@ -221,31 +586,60 @@ class FinanceRepository(
             require(entry.transferAccountId == null || entry.transferAccountId != entry.accountId) {
                 "Choose two different accounts."
             }
+            require(entry.goalId == null || entry.interestCents == 0L) {
+                "A goal transfer cannot carry interest."
+            }
+            require(entry.interestCents == 0L || entry.transferAccountId != null) {
+                "Interest only applies to a debt payment."
+            }
+            entry.transferAccountId?.takeIf { entry.interestCents > 0 }?.let { destinationId ->
+                val destination = accountBalanceFor(destinationId, excludingEntryId = entry.id)
+                require(destination.account.isLiability) {
+                    "Interest only applies to a debt payment."
+                }
+            }
             val source = accountBalanceFor(entry.accountId, excludingEntryId = entry.id)
-            require(entry.amountCents <= source.availableToMoveCents) {
-                if (source.account.type == AccountType.CREDIT) {
-                    "Only ${Money.formatPeso(source.availableToMoveCents)} of credit is available on ${source.account.name}."
-                } else {
-                    "Only ${Money.formatPeso(source.availableToMoveCents)} is available in ${source.account.name}."
+            val total = entry.amountCents + entry.interestCents
+            if (source.account.isLiability) {
+                require(!source.account.isCredit) {
+                    "A credit card cannot be the source of a transfer."
+                }
+                val destinationId = entry.transferAccountId
+                    ?: error("A drawdown needs a destination account.")
+                val destination = accountBalanceFor(destinationId, excludingEntryId = entry.id)
+                require(destination.account.type.isLiquid) {
+                    "A drawdown must land in cash or a bank account."
+                }
+            } else {
+                require(total <= source.availableToMoveCents) {
+                    availableMessage(source, source.availableToMoveCents)
                 }
             }
             entry.goalId?.let { goalId ->
+                require(source.account.type.isLiquid) {
+                    "Contribute to a goal from cash or a bank account."
+                }
                 val remaining = goalRemaining(goalId, excludingEntryId = entry.id)
                 require(entry.amountCents <= remaining) {
                     "This goal only needs ${Money.formatPeso(remaining)} more. Raise the target to save more."
                 }
             }
             entry.transferAccountId?.let { destinationId ->
-                require(source.account.type != AccountType.CREDIT) {
-                    "A card payment must come from cash or debit."
-                }
                 val destination = accountBalanceFor(destinationId, excludingEntryId = entry.id)
-                if (destination.account.type == AccountType.CREDIT) {
+                require(!(source.account.isLiability && destination.account.isLiability)) {
+                    "Choose a cash or bank account to receive a drawdown."
+                }
+                if (destination.account.isLiability) {
                     require(destination.outstandingCents > 0) {
-                        "This card has no outstanding balance to pay."
+                        "This debt has no outstanding balance to pay."
                     }
                     require(entry.amountCents <= destination.outstandingCents) {
                         "Only ${Money.formatPeso(destination.outstandingCents)} is outstanding on ${destination.account.name}."
+                    }
+                }
+                if (source.account.type.isReceivable) {
+                    require(destination.account.type.isLiquid) {
+                        "Collecting must land in cash or a bank account."
                     }
                 }
             }
@@ -253,14 +647,16 @@ class FinanceRepository(
             require(entry.categoryId == null || entry.type == TransactionType.EXPENSE) {
                 "Only expenses use a category."
             }
+            require(entry.interestCents == 0L) {
+                "Only a debt payment carries interest."
+            }
             if (entry.type == TransactionType.EXPENSE) {
                 val source = accountBalanceFor(entry.accountId, excludingEntryId = entry.id)
-                require(entry.amountCents <= source.availableToMoveCents) {
-                    if (source.account.type == AccountType.CREDIT) {
-                        "Only ${Money.formatPeso(source.availableToMoveCents)} of credit is available on ${source.account.name}."
-                    } else {
-                        "Only ${Money.formatPeso(source.availableToMoveCents)} is available in ${source.account.name}."
-                    }
+                require(!source.account.type.isReceivable) {
+                    "Money owed to you cannot fund an expense."
+                }
+                require(entry.amountCents <= source.availableToSpendCents) {
+                    availableMessage(source, source.availableToSpendCents)
                 }
             }
         }
@@ -358,6 +754,9 @@ class FinanceRepository(
         val clean = name.trim()
         val cleanLastFour = lastFour?.takeIf { it.isNotBlank() }?.takeLast(4)
         require(clean.isNotEmpty()) { "Name the account." }
+        require(type == AccountType.CASH || type == AccountType.DEBIT_EWALLET || type == AccountType.CREDIT) {
+            "Add loans, installments, informal debt, and receivables from the Debts tab."
+        }
         require(
             if (type == AccountType.CREDIT) {
                 openingBalanceCents in -Money.MAX_AMOUNT_CENTS..Money.MAX_AMOUNT_CENTS
@@ -397,6 +796,9 @@ class FinanceRepository(
         val clean = account.name.trim()
         val cleanLastFour = account.lastFour?.takeIf { it.isNotBlank() }?.takeLast(4)
         require(clean.isNotEmpty()) { "Name the account." }
+        require(account.type == AccountType.CASH || account.type == AccountType.DEBIT_EWALLET || account.type == AccountType.CREDIT) {
+            "Edit loans, installments, informal debt, and receivables from the Debts tab."
+        }
         require(!account.isDefault || account.type == AccountType.CASH) {
             "The default account must stay a Cash account."
         }
@@ -591,8 +993,13 @@ class FinanceRepository(
         require(amountCents in 1..Money.MAX_AMOUNT_CENTS) {
             "Enter an amount between \u20B10.01 and \u20B1999,999.99."
         }
-        require(dao.allAccounts().any { it.id == accountId && !it.archived }) {
-            "Choose an active account."
+        require(dao.allAccounts().any { account ->
+            account.id == accountId &&
+                !account.archived &&
+                (AccountType.fromStorage(account.type).isLiquid ||
+                    AccountType.fromStorage(account.type) == AccountType.CREDIT)
+        }) {
+            "Choose an active cash, bank, or card account."
         }
         if (categoryId != null) {
             require(type == TransactionType.EXPENSE) { "Only expenses use a category." }

@@ -1,12 +1,18 @@
 package com.psyche.app.ui
 
 import com.psyche.app.data.Category
+import com.psyche.app.data.DebtOrigin
+import com.psyche.app.data.DebtTerms
 import com.psyche.app.data.FinanceSettings
 import com.psyche.app.data.FinanceSnapshot
+import com.psyche.app.data.InterestMethod
 import com.psyche.app.data.LedgerEntry
 import com.psyche.app.data.QuickTransaction
+import com.psyche.app.data.AccountType
 import com.psyche.app.util.AccountBalance
 import com.psyche.app.util.ActivityRow
+import com.psyche.app.util.DebtMath
+import com.psyche.app.util.DebtSummary
 import com.psyche.app.util.GoalProgress
 import com.psyche.app.util.LedgerMath
 import com.psyche.app.util.MonthMath
@@ -34,6 +40,8 @@ data class FinanceUiState(
     val position: PositionSummary = PositionSummary.empty(),
     val accountBalances: List<AccountBalance> = emptyList(),
     val goals: List<GoalProgress> = emptyList(),
+    val debts: List<DebtSummary> = emptyList(),
+    val receivables: List<DebtSummary> = emptyList(),
 ) {
     val settings: FinanceSettings get() = snapshot.settings
     val isFirstRun: Boolean
@@ -42,6 +50,9 @@ data class FinanceUiState(
             goals.all { it.savedCents == 0L }
     val activeCategories: List<Category> get() = snapshot.activeCategories
     val quickTransactions: List<QuickTransaction> get() = snapshot.activeQuickTransactions
+    val activeDebts: List<DebtSummary> get() = debts + receivables
+    val debtAccountCount: Int get() = debts.size
+    val receivableAccountCount: Int get() = receivables.size
 }
 
 object FinanceStateBuilder {
@@ -53,8 +64,19 @@ object FinanceStateBuilder {
         val homeMonth = YearMonth.from(today)
         val balances = LedgerMath.accountBalances(snapshot.activeAccounts, snapshot.entries)
         val goals = LedgerMath.goalProgress(snapshot.activeGoals, snapshot.entries)
-        val activeAccountIds = snapshot.activeAccounts.map { it.id }.toSet()
+        val activeAccountIds = snapshot.activeAccounts
+            .filterNot { it.type.isReceivable }
+            .map { it.id }
+            .toSet()
         val activeGoalIds = snapshot.activeGoals.map { it.id }.toSet()
+        val debtSummaries = snapshot.activeDebts.map { account ->
+            DebtMath.summarize(
+                account = account,
+                terms = snapshot.termsFor(account.id),
+                entries = snapshot.entries,
+                today = today,
+            )
+        }
         return FinanceUiState(
             isLoading = false,
             snapshot = snapshot,
@@ -78,10 +100,20 @@ object FinanceStateBuilder {
                 accounts = snapshot.accounts,
                 goals = snapshot.goals,
                 entries = snapshot.entries,
+                debtTerms = snapshot.debtTerms,
                 today = today,
             ),
             accountBalances = balances,
             goals = goals,
+            debts = debtSummaries
+                .filterNot { it.isReceivable }
+                .sortedWith(
+                    compareBy<DebtSummary> { it.nextDueAt ?: Long.MAX_VALUE }
+                        .thenBy { it.account.name.lowercase() },
+                ),
+            receivables = debtSummaries
+                .filter { it.isReceivable }
+                .sortedBy { it.account.name.lowercase() },
         )
     }
 
@@ -124,6 +156,26 @@ data class CaptureDraft(
 )
 
 enum class CaptureType { EXPENSE, INCOME }
+
+data class DebtDraft(
+    val name: String,
+    val type: AccountType,
+    val amountCents: Long,
+    val originalPrincipalCents: Long,
+    val scheduleStartBalanceCents: Long,
+    val downPaymentCents: Long,
+    val annualRateBps: Int,
+    val interestMethod: InterestMethod,
+    val termMonths: Int,
+    val firstDueAt: Long,
+    val counterparty: String?,
+    val origin: DebtOrigin,
+    val fundingAccountId: Long?,
+    val existingAccountId: Long?,
+    val categoryId: Long?,
+    val note: String,
+    val occurredAt: Long,
+)
 
 sealed interface SnackbarFollowUp {
     data class UndoCreate(val entryId: Long) : SnackbarFollowUp

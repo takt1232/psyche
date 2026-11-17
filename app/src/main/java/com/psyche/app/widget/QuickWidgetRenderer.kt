@@ -54,7 +54,12 @@ object QuickWidgetRenderer {
 
     fun build(context: Context, snapshot: FinanceSnapshot): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_quick)
-        val position = PositionMath.summarize(snapshot.accounts, snapshot.goals, snapshot.entries)
+        val position = PositionMath.summarize(
+            snapshot.accounts,
+            snapshot.goals,
+            snapshot.entries,
+            debtTerms = snapshot.debtTerms,
+        )
         val noAccounts = position.accountCount == 0
         val negative = position.netCents < 0
         val amount = if (noAccounts) "\u2014" else Money.formatPeso(position.netCents)
@@ -109,14 +114,14 @@ object QuickWidgetRenderer {
             },
         )
 
-        val activeAccountIds = snapshot.activeAccounts.map { it.id }.toSet()
+        val activeAccountIds = snapshot.activeSpendAccounts.map { it.id }.toSet()
         val actions = snapshot.activeQuickTransactions
             .filter { it.accountId in activeAccountIds }
             .take(MAX_QUICK_ACTIONS)
         val balances = LedgerMath.accountBalances(snapshot.accounts, snapshot.entries)
             .associateBy { it.account.id }
         val lowById = actions.associate { quick ->
-            val available = balances[quick.accountId]?.availableToMoveCents ?: 0L
+            val available = balances[quick.accountId]?.availableToSpendCents ?: 0L
             quick.id to (quick.type == TransactionType.EXPENSE && quick.amountCents > available)
         }
         val anyLow = lowById.values.any { it }

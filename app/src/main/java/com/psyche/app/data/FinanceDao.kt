@@ -27,6 +27,9 @@ abstract class FinanceDao {
     @Query("SELECT * FROM quick_transactions ORDER BY archived ASC, sortOrder ASC, id ASC")
     abstract fun observeQuickTransactions(): Flow<List<QuickTransactionEntity>>
 
+    @Query("SELECT * FROM debt_terms")
+    abstract fun observeDebtTerms(): Flow<List<DebtTermsEntity>>
+
     @Query("SELECT * FROM app_settings")
     abstract fun observeSettings(): Flow<List<SettingEntity>>
 
@@ -42,6 +45,12 @@ abstract class FinanceDao {
     @Query("SELECT * FROM quick_transactions")
     abstract suspend fun allQuickTransactions(): List<QuickTransactionEntity>
 
+    @Query("SELECT * FROM debt_terms")
+    abstract suspend fun allDebtTerms(): List<DebtTermsEntity>
+
+    @Query("SELECT * FROM debt_terms WHERE accountId = :accountId")
+    abstract suspend fun debtTermsFor(accountId: Long): DebtTermsEntity?
+
     @Query("SELECT * FROM quick_transactions WHERE accountId = :accountId AND archived = 0")
     abstract suspend fun activeQuickTransactionsForAccount(accountId: Long): List<QuickTransactionEntity>
 
@@ -56,6 +65,12 @@ abstract class FinanceDao {
 
     @Upsert
     abstract suspend fun upsertGoal(goal: GoalEntity): Long
+
+    @Upsert
+    abstract suspend fun upsertDebtTerms(terms: DebtTermsEntity)
+
+    @Query("DELETE FROM debt_terms WHERE accountId = :accountId")
+    abstract suspend fun deleteDebtTerms(accountId: Long)
 
     @Upsert
     abstract suspend fun upsertSetting(setting: SettingEntity)

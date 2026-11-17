@@ -53,6 +53,7 @@ class PositionMathTest {
         accountId: Long,
         transferAccountId: Long? = null,
         goalId: Long? = null,
+        interestCents: Long = 0,
     ) = LedgerEntry(
         id = id,
         type = type,
@@ -65,6 +66,7 @@ class PositionMathTest {
         occurredAt = occurredAt,
         createdAt = occurredAt,
         needsAttention = false,
+        interestCents = interestCents,
     )
 
     @Test
@@ -193,5 +195,122 @@ class PositionMathTest {
         assertThat(position.accountCount).isEqualTo(1)
         assertThat(position.moneyCents).isEqualTo(100_000)
         assertThat(position.netCents).isEqualTo(100_000)
+    }
+
+    @Test
+    fun `loan principal is owed but future interest is not`() {
+        val loan = Account(
+            id = 4,
+            name = "Salary loan",
+            type = AccountType.LOAN,
+            openingBalanceCents = -40_000,
+            creditLimitCents = 0,
+            lastFour = null,
+            sortOrder = 2,
+            archived = false,
+        )
+        val position = PositionMath.summarize(
+            accounts = listOf(cash, loan),
+            goals = emptyList(),
+            entries = emptyList(),
+            today = today,
+        )
+
+        assertThat(position.cardOwedCents).isEqualTo(0)
+        assertThat(position.debtOwedCents).isEqualTo(40_000)
+        assertThat(position.owedCents).isEqualTo(40_000)
+        assertThat(position.netCents).isEqualTo(60_000)
+        assertThat(position.status).isEqualTo(PositionStatus.CAN_SETTLE)
+    }
+
+    @Test
+    fun `only the interest portion of a debt payment moves net`() {
+        val loan = Account(
+            id = 4,
+            name = "Salary loan",
+            type = AccountType.LOAN,
+            openingBalanceCents = -50_000,
+            creditLimitCents = 0,
+            lastFour = null,
+            sortOrder = 2,
+            archived = false,
+        )
+        val position = PositionMath.summarize(
+            accounts = listOf(cash, loan),
+            goals = emptyList(),
+            entries = listOf(
+                entry(
+                    id = 1,
+                    type = TransactionType.TRANSFER,
+                    amountCents = 10_000,
+                    accountId = cash.id,
+                    transferAccountId = loan.id,
+                    interestCents = 1_000,
+                ),
+            ),
+            today = today,
+        )
+
+        assertThat(position.moneyCents).isEqualTo(89_000)
+        assertThat(position.owedCents).isEqualTo(40_000)
+        assertThat(position.netCents).isEqualTo(49_000)
+    }
+
+    @Test
+    fun `lending cash lowers net and collecting raises it back`() {
+        val lent = Account(
+            id = 5,
+            name = "Loan to Ana",
+            type = AccountType.RECEIVABLE,
+            openingBalanceCents = 0,
+            creditLimitCents = 0,
+            lastFour = null,
+            sortOrder = 3,
+            archived = false,
+        )
+        val afterLending = PositionMath.summarize(
+            accounts = listOf(cash, lent),
+            goals = emptyList(),
+            entries = listOf(
+                entry(
+                    id = 1,
+                    type = TransactionType.TRANSFER,
+                    amountCents = 30_000,
+                    accountId = cash.id,
+                    transferAccountId = lent.id,
+                ),
+            ),
+            today = today,
+        )
+
+        assertThat(afterLending.moneyCents).isEqualTo(70_000)
+        assertThat(afterLending.receivableCents).isEqualTo(30_000)
+        assertThat(afterLending.netCents).isEqualTo(70_000)
+
+        val afterCollecting = PositionMath.summarize(
+            accounts = listOf(cash, lent),
+            goals = emptyList(),
+            entries = listOf(
+                entry(
+                    id = 1,
+                    type = TransactionType.TRANSFER,
+                    amountCents = 30_000,
+                    accountId = cash.id,
+                    transferAccountId = lent.id,
+                ),
+                entry(
+                    id = 2,
+                    type = TransactionType.TRANSFER,
+                    amountCents = 10_000,
+                    accountId = lent.id,
+                    transferAccountId = cash.id,
+                ),
+            ),
+            today = today,
+        )
+
+        assertThat(afterCollecting.moneyCents).isEqualTo(80_000)
+        assertThat(afterCollecting.receivableCents).isEqualTo(20_000)
+        assertThat(afterCollecting.netCents).isEqualTo(80_000)
     }
 }

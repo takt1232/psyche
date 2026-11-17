@@ -20,17 +20,19 @@ A single-owner life hub that combines practical trackers with RPG-style progress
 
 ## Operating Context
 
-Used by the owner on their Android phone as a personal, everyday tool. The first workflow is tracking personal finances: income and expenses, account balances, credit outstanding, savings goals, and cards such as ATM cards. The home surface answers one solvency question at a glance: **if every credit card were paid today, would any money be left?** Job-related DTR tracking is part of the wider vision but deferred. Hobbies and other life areas are future modules.
+Used by the owner on their Android phone as a personal, everyday tool. The first workflow is tracking personal finances: income and expenses, account balances, card outstanding, loans, BNPL/installments, informal debt, receivables, savings goals, and cards such as ATM cards. The home surface answers one solvency question at a glance: **if every card, loan, and BNPL were paid today, would any liquid money be left?** Job-related DTR tracking is part of the wider vision but deferred. Hobbies and other life areas are future modules.
 
 ## Capabilities and Constraints
 
-- Current build: Android app (Kotlin, Jetpack Compose, Material 3) with the Finance Tracker as its first module. It includes a live Balance Pass, activity ledger, active cash/debit/credit accounts, credit outstanding, savings goals, categories as expense labels, quick capture, and a home-screen widget with custom one-tap transactions.
-- The Balance Pass shows a signed net position: active account money plus savings goals minus total credit-card outstanding. The same number can be positive or negative. Money and owed amounts sit beside it, with a debt-coverage indicator and per-account calculated balances.
-- Credit payments are transfers: cash and outstanding fall together, leaving the net position unchanged. Card purchases lower net. Goal contributions are transfers and do not change net.
-- Archived accounts and goals are excluded from totals but remain part of the record.
+- Current build: Android app (Kotlin, Jetpack Compose, Material 3) with the Finance Tracker as its first module. It includes a live Balance Pass, activity ledger, active cash/debit/credit accounts, a Debts tab for loans/installments/informal debt and receivables with amortization schedules, savings goals, categories as expense labels, quick capture, and a home-screen widget with custom one-tap transactions.
+- The Balance Pass shows a signed net position: active liquid money plus savings goals minus total card, loan, installment, and informal-debt principal. The same number can be positive or negative. Money and owed amounts sit beside it, with a debt-coverage indicator, a due-in-7-days line, and per-account calculated balances. Receivables are tracked separately and excluded from net until collected.
+- Card and debt payments are transfers for principal: cash and the liability fall together, leaving net unchanged. Interest is an expense and is the only part of a payment that lowers net. Card purchases and installment purchases lower net; borrowing cash and contributing to goals do not.
+- Only principal is owed. Future interest on a schedule is a projection shown as `INTEREST TO COME`, never part of `OWED`. Loan terms support reducing-balance, add-on/flat, and zero-interest methods; extra principal shortens the projected payoff.
+- A plan already in progress can be entered from its monthly payment, term, payments made, first due date, and downpayment. The app computes the financed amount and remaining balance, and can convert an existing credit account instead of creating a second debt.
+- Archived accounts, debts, and goals are excluded from totals but remain part of the record.
 - Persistence is a local Room database on the phone. The app has no network permission, analytics, cloud backup, or account system.
 - Confirmed product areas: Finance Tracker (current focus), jobs, hobbies, and a job-related DTR module (deferred). XP and levels are the confirmed gaming mechanic across the product.
-- Finance Tracker scope: income and expenses; accounts and calculated balances; credit outstanding and limits; savings goals; cards such as ATM/debit/credit cards as part of accounts; categories as optional expense labels. There is no monthly cap, category allocation, or budget pass. The working defaults are PHP, en-PH, and 12-hour time.
+- Finance Tracker scope: income and expenses; accounts and calculated balances; credit outstanding and limits; loans, BNPL/installments, informal debt, and receivables with schedules and due dates; savings goals; cards such as ATM/debit/credit cards as part of accounts; categories as optional expense labels. There is no monthly cap, category allocation, or budget pass. The working defaults are PHP, en-PH, and 12-hour time.
 - No multi-user, social, or sharing requirements are established.
 - Undecided: XP rules and progression design, how the modules connect, and release plans.
 
@@ -47,5 +49,5 @@ No real financial data, user testimonials, case studies, or brand assets beyond 
 1. Build for one person. Every decision serves the owner's actual life; avoid generic multi-user product complexity.
 2. Make the first module genuinely useful. The Finance Tracker must stand on its own before the wider "virtual me" expands.
 3. Let progress serve the data. XP and levels should encourage consistent use without distorting financial truth.
-4. Keep money legible and trustworthy. The net position, account balances, and credit outstanding must be accurate and easy to scan.
+4. Keep money legible and trustworthy. The net position, account balances, debt principal, and interest split must be accurate and easy to scan.
 5. Grow in modules. Leave clean room for jobs, hobbies, and DTR without compromising the current feature.

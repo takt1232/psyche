@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Psyche</string>
     <string name="widget_name">Psyche one-tap</string>
-    <string name="widget_description">Net position, credit owed, and four one-tap transactions.</string>
+    <string name="widget_description">Net position, total owed, and four one-tap transactions.</string>
     <string name="widget_empty">Create one-tap actions in Psyche</string>
     <string name="widget_header_open">Open Psyche</string>
     <string name="widget_footer_ready">TAP A BUTTON TO LOG · OPEN PSYCHE</string>

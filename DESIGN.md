@@ -167,7 +167,7 @@ The interface is dense but never cramped. Every label is short enough to scan at
 
 **The Amber Means Attention Rule.** Alert yellow is reserved for the lit new row, the FAB, selected navigation and controls, progress fills, the pass's one-tap status dot, and the widget's brand and action amounts. It is never body copy or a large decorative field.
 
-**The Honest Numbers Rule.** Never prefill a balance, credit outstanding, or category amount. Empty states say what to do; they do not demonstrate with fake money. A zero is shown as zero, and a negative net keeps its true minus sign.
+**The Honest Numbers Rule.** Never prefill a balance, debt principal, or category amount. Empty states say what to do; they do not demonstrate with fake money. A zero is shown as zero, and a negative net keeps its true minus sign.
 
 ## Colors
 
@@ -178,7 +178,7 @@ The palette is a two-condition terminal: ink and paper, with one signal yellow a
 - **Signal Ink** (`ink`): the foreground on the pass and on amber. Also the light-theme ground text. It is near-black, not pure black, so the white pass has a slight material contrast.
 
 ### Secondary
-- **Card Danger** (`danger-night`, `danger-day`): negative net positions, credit outstanding, shortfalls, and destructive warnings. It is a separate semantic channel from amber; never use red for a neutral transfer or a covered card.
+- **Card Danger** (`danger-night`, `danger-day`): negative net positions, liability outstanding, shortfalls, overdue installments, and destructive warnings. It is a separate semantic channel from amber; never use red for a neutral transfer or a covered debt.
 
 ### Neutral
 - **Night Ground** (`night-ground`): the default app background and navigation container.
@@ -221,7 +221,7 @@ The palette is a two-condition terminal: ink and paper, with one signal yellow a
 
 ### Named Rules
 
-**The Tabular Money Rule.** Every amount column, time column, running net, balance, and credit outstanding uses tabular figures. Money is compared by digit position, never by proportional rhythm.
+**The Tabular Money Rule.** Every amount column, time column, running net, balance, and liability balance uses tabular figures. Money is compared by digit position, never by proportional rhythm.
 
 **The One Display Rule.** Only one display-sized number may appear in a viewport. The pass amount wins; entry detail may use a smaller pass amount, but not a second competing hero.
 
@@ -276,11 +276,14 @@ Barcode bars are a functional reference, not a decorative pattern: each bar is d
 - **Error / Disabled:** danger outline and a mono error line; disabled text uses faint. Amount fields use grouped digits and tabular figures.
 
 ### Navigation
-- **Style:** bottom bar, 66dp content height plus the navigation inset, three destinations: Home, Activity, Accounts. Icons are 21dp, labels are 8px mono uppercase with 1.1px tracking. Selected icon/label uses signal amber on dark and `alert-ink` on light; unselected uses the muted nav token. The FAB is a separate 60dp amber circle above the bar.
-- **Behavior:** System Back from a non-Home tab returns Home; back from Home exits. Sheets and the capture overlay own their back dismissal. Predictive Back is enabled at the activity level.
+- **Style:** bottom bar, 66dp content height plus the navigation inset, four destinations: Home, Activity, Accounts, Debts. Icons are 21dp, labels are 8px mono uppercase with 1.1px tracking. Selected icon/label uses signal amber on dark and `alert-ink` on light; unselected uses the muted nav token. The FAB is a separate 60dp amber circle above the bar; on Debts it opens Add debt.
+- **Behavior:** System Back from a non-Home tab returns Home; back from Home exits. A debt detail owns its back gesture and returns to Debts. Sheets and the capture overlay own their back dismissal. Predictive Back is enabled at the activity level.
 
 ### Signature Components
-- **Balance Pass:** a white ticket with a top strip (BALANCE PASS + as-of date), an auto-sized signed net position, a “MONEY / OWED” side stack, a debt-coverage bar when cards are owed, a three-segment CASH / SAVED / STATUS row, and a functional barcode footer with one-tap status. Status is DEBT-FREE, CAN SETTLE, SHORT, or NO ACCOUNTS. The empty version shows ₱0 and an Add account action, never a fabricated balance.
+- **Balance Pass:** a white ticket with a top strip (BALANCE PASS + as-of date), an auto-sized signed net position, a “MONEY / OWED” side stack, a debt-coverage bar when any liability is owed, a `CARDS · DEBT` breakdown, a `DUE 7D` line when an installment is near, a three-segment CASH / SAVED / STATUS row, and a functional barcode footer with one-tap status. Status is DEBT-FREE, CAN SETTLE, SHORT, or NO ACCOUNTS. The empty version shows ₱0 and an Add account action, never a fabricated balance.
+- **Debts Tab:** a summary strip (`YOU OWE`, `OWED TO YOU`, `DUE 7D`), a 30-day due-soon list, `YOU OWE` rows with kind stamps, balance, installment, next due, and payoff progress, a read-only card summary, and `OWED TO YOU` rows with a Collect action. Rows are hairline tables, not cards.
+- **Debt Detail:** a full-screen obligation sheet with a white balance hero, payoff progress, action row, terms grid, and an amortization schedule table (`DUE / PAYMENT / PRINCIPAL / BALANCE`) with paid, due, late, and upcoming stamps. Future interest appears as `INTEREST TO COME`, never as owed. In-progress plans show financed amount, downpayment, purchase total, paid-to-date, and payments made; a converted account keeps its existing balance.
+- **Add Debt:** a situation-first sheet: **Already paying it**, **Already owe it**, **Buying it now**, or **Borrowed cash**. The in-progress path accepts the monthly payment, term, payments made, first due date, and downpayment, and previews financed/paid/remaining before saving. An existing credit account can be selected as the tracking home so the same plan is not counted twice.
 - **Live Activity Board:** four-column table (TIME / DESCRIPTION / AMOUNT / NET), newest row amber with a NOW chip, older rows on the night row. The running net is the active-account position after each row. The board is the record; it never becomes a stack of cards.
 - **Stamp:** a 2dp-corner mono tag used for FIRST RUN, DEFAULT, DEBT-FREE, SHORT, category labels, and flow state. Outlined by default; filled only when the state is the amber attention state.
 - **Top Feedback Banner:** a floating in-app notice strip at the top of the app, with a slide/fade entrance, amber check tile, mono NOTICE label, message, and optional text action. It appears above app content and carries save, copy, one-tap, and undo confirmations.
@@ -292,16 +295,18 @@ Barcode bars are a functional reference, not a decorative pattern: each bar is d
 - **Do** keep the pass as the only lifted document; let the board sit directly on the ground.
 - **Do** use `alert-ink` for amber-like text/icons on light grounds and bright `alert` only as a fill.
 - **Do** preserve tabular figures, uppercase mono table labels, and 1dp hairlines.
-- **Do** show a real signed net position, including a true minus sign when the cards outweigh the money.
+- **Do** show a real signed net position, including a true minus sign when total debt outweighs the money.
 - **Do** auto-size the pass amount and allow long board descriptions to ellipsize.
 - **Do** keep every primary action at 48dp or more and every sheet scrollable above the IME.
-- **Do** treat card payments and goal contributions as net-neutral transfers; never present them as spending.
-- **Do** show every active account's calculated balance, and mark archived accounts as excluded from totals.
+- **Do** treat card payments, debt principal payments, and goal contributions as net-neutral transfers; never present them as spending.
+- **Do** record interest as an expense and keep only principal in `OWED`; show future interest as a projection.
+- **Do** show every active account's calculated balance and every active debt's principal, and mark archived accounts/debts as excluded from totals.
 
 ### Don't:
 - **Don't** turn rows or feature areas into nested cards or icon+heading+text tiles.
 - **Don't** use amber for body copy, large backgrounds, or decoration unrelated to a live state.
 - **Don't** put bright amber text on white or rely on color alone to explain a negative net or shortfall.
 - **Don't** add a second hero number, gradient text, glass/blur decoration, or arbitrary drop shadows.
-- **Don't** prefill balances, credit outstanding, categories, or activity to make the empty state look busy.
+- **Don't** prefill balances, debt principal, categories, or activity to make the empty state look busy.
+- **Don't** put future interest in `OWED` or let a schedule change the pass before a payment is recorded.
 - **Don't** invent XP, levels, or gaming chrome inside the finance surface; that mechanic is not designed yet.

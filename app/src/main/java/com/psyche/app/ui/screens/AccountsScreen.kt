@@ -27,7 +27,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.psyche.app.data.Account
-import com.psyche.app.data.AccountType
 import com.psyche.app.data.SavingsGoal
 import com.psyche.app.ui.FinanceUiState
 import com.psyche.app.ui.components.AppTopBar
@@ -60,7 +59,12 @@ fun AccountsScreen(
     onRestoreGoal: (SavingsGoal) -> Unit,
 ) {
     val palette = LocalPsychePalette.current
-    val archivedAccounts = state.snapshot.accounts.filter { it.archived }
+    val visibleBalances = state.accountBalances.filter {
+        it.account.type.isLiquid || it.account.isCredit
+    }
+    val archivedAccounts = state.snapshot.accounts.filter {
+        it.archived && (it.type.isLiquid || it.isCredit)
+    }
     val archivedGoals = state.snapshot.goals.filter { it.archived }
     Column(
         modifier = Modifier
@@ -111,7 +115,10 @@ fun AccountsScreen(
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                if (state.snapshot.activeAccounts.size >= 2) {
+                val eligibleDestinations = state.snapshot.activeAccounts.count {
+                    !it.type.isReceivable
+                }
+                if (state.snapshot.activeLiquidAccounts.isNotEmpty() && eligibleDestinations >= 2) {
                     SecondaryAction(
                         text = "Move money",
                         onClick = onTransfer,
@@ -124,6 +131,15 @@ fun AccountsScreen(
                         style = PassType.monoMicro.copy(fontSize = 7.sp),
                     )
                 }
+                if (state.position.debtOwedCents > 0) {
+                    Spacer(Modifier.height(6.dp))
+                    MonoText(
+                        text = "LOANS, INSTALLMENTS, AND UTANG ARE MANAGED ON THE DEBTS TAB. THEIR PRINCIPAL IS IN OWED.",
+                        color = palette.faint,
+                        style = PassType.monoMicro.copy(fontSize = 7.sp),
+                        maxLines = 2,
+                    )
+                }
                 Spacer(Modifier.height(26.dp))
                 SectionHeading(
                     title = "Accounts",
@@ -133,21 +149,21 @@ fun AccountsScreen(
                 )
                 Spacer(Modifier.height(8.dp))
             }
-            if (state.accountBalances.isEmpty()) {
+            if (visibleBalances.isEmpty()) {
                 item {
                     EmptyPanel(
                         title = "No accounts yet",
-                        body = "Add the cash, debit, e-wallet, or credit account you actually use. Every active balance feeds the net position.",
+                        body = "Add the cash, debit, e-wallet, or credit card you actually use. Every active balance feeds the net position.",
                         actionLabel = "Add account",
                         onAction = onAddAccount,
                         eyebrow = "NO ACCOUNTS",
                     )
                 }
             } else {
-                items(state.accountBalances.size, key = { index -> "acct-${state.accountBalances[index].account.id}" }) { index ->
+                items(visibleBalances.size, key = { index -> "acct-${visibleBalances[index].account.id}" }) { index ->
                     AccountRow(
-                        balance = state.accountBalances[index],
-                        onClick = { onEditAccount(state.accountBalances[index].account) },
+                        balance = visibleBalances[index],
+                        onClick = { onEditAccount(visibleBalances[index].account) },
                     )
                 }
             }
@@ -259,7 +275,7 @@ private fun AccountRow(
 ) {
     val palette = LocalPsychePalette.current
     val account = balance.account
-    val credit = account.type == AccountType.CREDIT
+    val credit = account.isCredit
     Column(
         modifier = Modifier
             .fillMaxWidth()

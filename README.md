@@ -10,23 +10,31 @@ and no analytics or cloud backup.
 
 ## What is in the build
 
-- A live **net position** across active accounts and savings goals:
-  `cash + savings + prepaid card balance − credit card outstanding`.
+- A live **net position** across active accounts, debts, and savings goals:
+  `cash + savings + prepaid card balance − card outstanding − loan/BNPL/utang principal`.
 - A signed net number that can be positive or negative, with **MONEY** and
   **OWED** beside it.
 - A debt-coverage indicator: whether the money on hand could settle every
-  active credit card today, or how much is short.
+  active liability today, or how much is short.
 - Calculated balances for every active account. Credit rows show the negative
   balance, outstanding amount, limit, and available credit.
 - Cash, debit/e-wallet, and credit accounts, including credit limit and
   outstanding.
+- A **Debts** tab for loans, BNPL/installments, informal utang, and money owed
+  to you. It shows what is due in the next 7 and 30 days, a full amortization
+  schedule, and payoff progress.
+- Loan terms support reducing-balance, add-on/flat, and zero-interest methods.
+  Only principal counts in `OWED`; future interest is a projection and is
+  recorded as an expense when paid.
+- Receivables are tracked but excluded from net until collected. Lending cash
+  lowers liquid money; collecting it raises liquid money.
 - Savings goals funded by transfers; goal money still counts in the net
   position.
 - Expenses, income, and transfers in one local ledger.
-- Card payments are transfers: they reduce cash and outstanding together, so
-  the net position does not change.
-- Archived accounts are excluded from totals; their history stays in the
-  record.
+- Card and debt payments are transfers for principal; interest is the only part
+  of a payment that changes the net position.
+- Archived accounts and debts are excluded from totals; their history stays in
+  the record.
 - Quick capture from the yellow FAB.
 - A home-screen widget with the net position and up to four custom one-tap
   buttons.
@@ -41,6 +49,46 @@ and no analytics or cloud backup.
 
 The old journaling scaffold, in-memory repository, and budget/cap feature have
 been removed.
+
+## Debts
+
+The Debts tab is the home for obligations that are not revolving cards:
+
+- **Loans** (bank, salary, SSS, Pag-IBIG, car, mortgage) with a remaining
+  balance, rate, term, and first due date.
+- **Installments** (BNPL, Home Credit, phone/appliance plans) with a purchase
+  amount, term, and zero or stated interest.
+- **Informal utang** with a balance and optional counterparty.
+- **Owed to you** — money you lent. It is tracked but not counted in net.
+
+Cards stay managed in Accounts, with a read-only summary row in Debts so the
+total reconciles. A debt can be entered as an **already paying** plan, an
+existing balance, a new purchase, or borrowed cash.
+
+The **Already paying it** path is for a plan that started before you tracked it.
+Enter the monthly payment, term, first due date, payments already made, and
+optional downpayment. The app computes the financed amount, the remaining
+balance, and the next due date. For example, a phone at ₱2,357/month for 18
+months with 11 payments made and a ₱10,000 downpayment becomes:
+
+```
+FINANCED    ₱42,426
+PAID        ₱25,927  (11 of 18)
+REMAINING   ₱16,499
+NEXT DUE    14 Nov 2026
+PURCHASE    ₱52,426
+```
+
+No past payments are posted again; the current balance and the plan terms carry
+the history. If the plan is already tracked as a credit account (for example
+Home Credit), select it under **Already tracked as** and the app converts that
+account instead of creating a second debt.
+
+The schedule is a projection from the terms and actual payments. Only principal
+is a liability. Interest is recorded when paid and lowers net; the schedule's
+`INTEREST TO COME` is not part of `OWED`. Extra principal shortens the projected
+payoff, and editing terms projects forward from today's balance without
+rewriting past payments.
 
 ## One-tap widget
 
@@ -123,8 +171,11 @@ ddmlib sometimes times out waiting for the device even though the APK installs f
 1. Open the default Cash account and set its opening balance to the real cash
    you hold.
 2. Optionally add a credit account and enter its current outstanding balance.
-3. Add categories only if you want labels on expenses.
-4. Add goals or more accounts later from the Accounts tab.
+3. Add any loan, installment, or informal utang from the Debts tab. For a plan
+   already in progress, use **Already paying it** and enter the monthly payment,
+   term, payments made, and downpayment.
+4. Add categories only if you want labels on expenses.
+5. Add goals or more accounts later from the Accounts tab.
 
 No amounts are prefilled. The default Cash account starts at ₱0 and cannot be
 archived. After setup, create one-tap actions in Settings (or the Home strip),
@@ -141,6 +192,9 @@ Widget taps log immediately; the FAB remains the fallback capture path.
   through a manifest broadcast receiver; it does not add network access.
 - The version 1.1 database migration drops the retired budget and allocation
   tables. Accounts, entries, goals, one-tap actions, and settings are preserved.
+- The version 1.4 database (schema v6) adds `debt_terms`,
+  `ledger_entries.interestCents`, and `debt_terms.downPaymentCents`.
+  Existing accounts, entries, goals, one-tap actions, and settings are preserved.
 
 ## Project structure
 
@@ -168,6 +222,7 @@ app/src/main/java/com/psyche/app/
 │   ├── sheets/
 │   └── theme/
 └── util/
+    ├── DebtMath.kt
     ├── Formats.kt
     ├── LedgerMath.kt
     ├── Money.kt
@@ -184,11 +239,20 @@ The visual system is documented in [DESIGN.md](DESIGN.md); the product truth is 
 The project has a JUnit 4 / Truth / Turbine / `kotlinx-coroutines-test` test
 classpath.
 
-- `PositionMathTest` covers net position, debt coverage, card payments, goal
-  contributions, negative net, and archived-account exclusion.
+- `PositionMathTest` covers net position, debt coverage, card and loan
+  payments, receivables, goal contributions, negative net, and archived-account
+  exclusion.
 - `LedgerMathTest` covers the running net in the activity board.
+- `DebtMathTest` covers zero-interest, reducing-balance, and add-on schedules,
+  interest projections, paid installments, due windows, overdue states, and an
+  in-progress installment with 11 of 18 payments made.
+- `MonthMathTest` covers interest counting as spending while principal stays
+  net-neutral.
+- `MoneyTest` covers the everyday entry cap and the larger debt-principal cap.
 - `FinanceRepositoryQuickTransactionTest` covers one-tap logging, the four-slot
   limit, and the account-archive guard.
+- `FinanceRepositoryDebtTest` covers debt-payment splits, overpayment rejection,
+  existing balances, BNPL purchases, borrowing, and lending.
 
 ```powershell
 .\gradlew.bat testDebugUnitTest

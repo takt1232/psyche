@@ -87,7 +87,21 @@ fun BalancePassCard(
                     )
                     Spacer(Modifier.weight(1f))
                     Text(
-                        text = "${position.accountCount} ACTIVE ${if (position.accountCount == 1) "ACCOUNT" else "ACCOUNTS"}",
+                        text = buildString {
+                            append(position.accountCount)
+                            append(" ACTIVE ")
+                            append(if (position.accountCount == 1) "ACCOUNT" else "ACCOUNTS")
+                            if (position.debtCount > 0) {
+                                append(" \u00B7 ")
+                                append(position.debtCount)
+                                append(if (position.debtCount == 1) " DEBT" else " DEBTS")
+                            }
+                            if (position.receivableCount > 0) {
+                                append(" \u00B7 ")
+                                append(position.receivableCount)
+                                append(" TO COLLECT")
+                            }
+                        },
                         style = PassType.monoMicro.copy(letterSpacing = 1.sp),
                         color = palette.passMuted,
                         maxLines = 1,
@@ -160,6 +174,33 @@ fun BalancePassCard(
                             color = if (negative) palette.dangerOnPass else palette.passInk,
                         )
                     }
+                }
+                if (position.debtOwedCents > 0) {
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        text = "CARDS ${Money.formatPeso(position.cardOwedCents)} \u00B7 " +
+                            "DEBT ${Money.formatPeso(position.debtOwedCents)}",
+                        style = PassType.monoMicro.copy(letterSpacing = 0.6.sp),
+                        color = palette.passMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (position.due7Cents > 0) {
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        text = "DUE 7D ${Money.formatPeso(position.due7Cents)}",
+                        style = PassType.monoMicro.copy(
+                            letterSpacing = 0.8.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                        color = if (position.due7Cents > position.moneyCents) {
+                            palette.dangerOnPass
+                        } else {
+                            palette.passInk
+                        },
+                        maxLines = 1,
+                    )
                 }
                 Spacer(Modifier.height(12.dp))
                 PassSegments(

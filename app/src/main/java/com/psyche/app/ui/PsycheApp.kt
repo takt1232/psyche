@@ -45,10 +45,14 @@ import com.psyche.app.ui.components.PsycheBottomBar
 import com.psyche.app.ui.components.TopFeedbackBanner
 import com.psyche.app.ui.screens.AccountsScreen
 import com.psyche.app.ui.screens.ActivityScreen
+import com.psyche.app.ui.screens.DebtDetailScreen
+import com.psyche.app.ui.screens.DebtsScreen
 import com.psyche.app.ui.screens.HomeScreen
 import com.psyche.app.ui.sheets.AccountEditorSheet
 import com.psyche.app.ui.sheets.CategoriesSheet
 import com.psyche.app.ui.sheets.ContributionSheet
+import com.psyche.app.ui.sheets.DebtEditorSheet
+import com.psyche.app.ui.sheets.DebtPaymentSheet
 import com.psyche.app.ui.sheets.EntryDetailSheet
 import com.psyche.app.ui.sheets.GoalEditorSheet
 import com.psyche.app.ui.sheets.QuickTransactionEditorSheet
@@ -75,6 +79,15 @@ private sealed interface Overlay {
     ) : Overlay
     data class GoalEditor(val goalId: Long?) : Overlay
     data class Contribution(val goalId: Long) : Overlay
+    data class DebtEditor(
+        val accountId: Long?,
+        val receivable: Boolean = false,
+    ) : Overlay
+    data class DebtDetail(val accountId: Long) : Overlay
+    data class DebtPayment(
+        val accountId: Long,
+        val collect: Boolean = false,
+    ) : Overlay
     data class Entry(val row: ActivityRow) : Overlay
     data object QuickActions : Overlay
     data class QuickEditor(val quickId: Long?) : Overlay
@@ -165,6 +178,9 @@ fun PsycheApp(
     BackHandler(enabled = tab != MainTab.HOME && overlay == null) {
         tabName = MainTab.HOME.name
     }
+    BackHandler(enabled = overlay is Overlay.DebtDetail) {
+        overlay = null
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
@@ -182,7 +198,9 @@ fun PsycheApp(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    if (state.snapshot.activeAccounts.isEmpty()) {
+                    if (tab == MainTab.DEBTS) {
+                        overlay = Overlay.DebtEditor(null)
+                    } else if (state.snapshot.activeSpendAccounts.isEmpty()) {
                         viewModel.notify("Add a starting account before logging money.")
                         overlay = Overlay.AccountEditor(null)
                     } else {
@@ -200,10 +218,10 @@ fun PsycheApp(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_add),
-                    contentDescription = if (state.snapshot.activeAccounts.isEmpty()) {
-                        "Add an account"
-                    } else {
-                        "Log expense"
+                    contentDescription = when {
+                        tab == MainTab.DEBTS -> "Add debt"
+                        state.snapshot.activeSpendAccounts.isEmpty() -> "Add an account"
+                        else -> "Log expense"
                     },
                     modifier = Modifier.size(26.dp),
                 )
@@ -257,6 +275,20 @@ fun PsycheApp(
                     scope.launch { viewModel.restoreGoal(goal) }
                 },
             )
+
+            MainTab.DEBTS -> DebtsScreen(
+                state = state,
+                onSettings = { overlay = Overlay.Settings },
+                onAddDebt = { overlay = Overlay.DebtEditor(null) },
+                onAddReceivable = { overlay = Overlay.DebtEditor(null, receivable = true) },
+                onOpenDebt = { overlay = Overlay.DebtDetail(it.id) },
+                onPay = { overlay = Overlay.DebtPayment(it.account.id) },
+                onCollect = { overlay = Overlay.DebtPayment(it.account.id, collect = true) },
+                onAccounts = { tabName = MainTab.ACCOUNTS.name },
+                onRestoreAccount = { account ->
+                    scope.launch { viewModel.restoreAccount(account) }
+                },
+                )
         }
         }
     }
@@ -295,7 +327,7 @@ fun PsycheApp(
         Overlay.QuickActions -> QuickTransactionsSheet(
             viewModel = viewModel,
             quickTransactions = state.snapshot.quickTransactions,
-            accounts = state.snapshot.activeAccounts,
+            accounts = state.snapshot.activeSpendAccounts,
             categories = state.snapshot.activeCategories,
             onAdd = { overlay = Overlay.QuickEditor(null) },
             onEdit = { overlay = Overlay.QuickEditor(it.id) },
@@ -312,7 +344,7 @@ fun PsycheApp(
                 QuickTransactionEditorSheet(
                     viewModel = viewModel,
                     quick = quick,
-                    accounts = state.snapshot.activeAccounts,
+                    accounts = state.snapshot.activeSpendAccounts,
                     categories = state.snapshot.activeCategories,
                     lastAccountId = state.settings.lastAccountId,
                     onDismiss = { overlay = Overlay.QuickActions },
@@ -365,9 +397,82 @@ fun PsycheApp(
                 ContributionSheet(
                     viewModel = viewModel,
                     goal = goal,
-                    accounts = state.snapshot.activeAccounts,
+                    accounts = state.snapshot.activeLiquidAccounts,
                     balances = state.accountBalances,
                     lastAccountId = state.settings.lastAccountId,
+                    onDismiss = { overlay = null },
+                )
+            }
+        }
+
+        is Overlay.DebtEditor -> {
+            val account: Account? = current.accountId?.let { id ->
+                state.snapshot.accounts.firstOrNull { it.id == id }
+            }
+            val summary = current.accountId?.let { id ->
+                state.activeDebts.firstOrNull { it.account.id == id }
+            }
+            if (current.accountId != null && (account == null || summary == null)) {
+                overlay = null
+            } else {
+                DebtEditorSheet(
+                    viewModel = viewModel,
+                    account = account,
+                    summary = summary,
+                    liquidAccounts = state.snapshot.activeLiquidAccounts,
+                    existingAccounts = state.accountBalances
+                        .filter {
+                            it.account.isLiability &&
+                                !it.account.isScheduledDebt &&
+                                it.outstandingCents > 0
+                        }
+                        .map { it.account },
+                    balances = state.accountBalances,
+                    categories = state.snapshot.activeCategories,
+                    defaultReceivable = current.receivable,
+                    onDismiss = { overlay = null },
+                )
+            }
+        }
+
+        is Overlay.DebtDetail -> {
+            val account = state.snapshot.accounts.firstOrNull { it.id == current.accountId }
+            val summary = state.activeDebts.firstOrNull { it.account.id == current.accountId }
+            if (account == null || summary == null) {
+                overlay = null
+            } else {
+                DebtDetailScreen(
+                    summary = summary,
+                    onBack = { overlay = null },
+                    onPay = { overlay = Overlay.DebtPayment(account.id) },
+                    onCollect = { overlay = Overlay.DebtPayment(account.id, collect = true) },
+                    onEdit = { overlay = Overlay.DebtEditor(account.id) },
+                    onArchive = {
+                        scope.launch {
+                            viewModel.archiveAccount(account).onSuccess { overlay = null }
+                        }
+                    },
+                    onRestore = {
+                        scope.launch {
+                            viewModel.restoreAccount(account).onSuccess { overlay = null }
+                        }
+                    },
+                )
+            }
+        }
+
+        is Overlay.DebtPayment -> {
+            val summary = state.activeDebts.firstOrNull { it.account.id == current.accountId }
+            if (summary == null) {
+                overlay = null
+            } else {
+                DebtPaymentSheet(
+                    viewModel = viewModel,
+                    summary = summary,
+                    liquidAccounts = state.snapshot.activeLiquidAccounts,
+                    balances = state.accountBalances,
+                    lastAccountId = state.settings.lastAccountId,
+                    collect = current.collect,
                     onDismiss = { overlay = null },
                 )
             }

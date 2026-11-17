@@ -5,6 +5,13 @@ import java.math.RoundingMode
 
 object Money {
     const val MAX_AMOUNT_CENTS = 99_999_999L
+
+    /**
+     * Debts can be much larger than an everyday transaction. A mortgage or car
+     * loan above ₱1M must still be enterable as an existing balance.
+     */
+    const val MAX_DEBT_CENTS = 99_999_999_999L
+
     private const val MINUS = "\u2212"
 
     fun formatPeso(
@@ -51,18 +58,27 @@ object Money {
      * Parses an amount typed by the owner. Returns null for empty, zero, negative,
      * malformed, or over-limit input. Values are capped at ₱999,999.99.
      */
-    fun parse(input: String): Long? {
+    fun parse(input: String): Long? = parseWithin(input, maxWholeDigits = 7, maxCents = MAX_AMOUNT_CENTS)
+
+    /**
+     * Parses a debt principal up to ₱999,999,999.99. Used only for balances and
+     * terms, never for an everyday entry.
+     */
+    fun parseDebt(input: String): Long? =
+        parseWithin(input, maxWholeDigits = 9, maxCents = MAX_DEBT_CENTS)
+
+    private fun parseWithin(input: String, maxWholeDigits: Int, maxCents: Long): Long? {
         val cleaned = input.trim()
             .replace("\u20B1", "")
             .replace(",", "")
             .replace(" ", "")
         if (cleaned.isEmpty()) return null
-        if (!Regex("""\d{0,7}(\.\d{0,2})?""").matches(cleaned)) return null
+        if (!Regex("""\d{0,$maxWholeDigits}(\.\d{0,2})?""").matches(cleaned)) return null
         if (cleaned == "." || cleaned.startsWith(".")) return null
         val decimal = runCatching { BigDecimal(cleaned).setScale(2, RoundingMode.UNNECESSARY) }
             .getOrNull() ?: return null
         val cents = runCatching { decimal.movePointRight(2).longValueExact() }.getOrNull() ?: return null
-        return cents.takeIf { it in 1..MAX_AMOUNT_CENTS }
+        return cents.takeIf { it in 1..maxCents }
     }
 
     /** A plain editable value for text fields: 8240 or 8240.50. */

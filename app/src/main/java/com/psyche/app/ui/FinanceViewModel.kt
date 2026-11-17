@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.psyche.app.data.Account
 import com.psyche.app.data.AccountType
 import com.psyche.app.data.Category
+import com.psyche.app.data.DebtTerms
 import com.psyche.app.data.FinanceRepository
 import com.psyche.app.data.LedgerEntry
 import com.psyche.app.data.QuickLogResult
@@ -167,19 +168,89 @@ class FinanceViewModel(
             occurredAt = occurredAt,
             lightRow = true,
         )
-        val cardPayment = toAccountId?.let { destinationId ->
-            repository.snapshot.first().accounts
-                .firstOrNull { it.id == destinationId }
-                ?.type == AccountType.CREDIT
-        } == true
+        val snapshot = repository.snapshot.first()
+        val toAccount = toAccountId?.let { destinationId ->
+            snapshot.accounts.firstOrNull { it.id == destinationId }
+        }
+        val fromAccount = snapshot.accounts.firstOrNull { it.id == fromAccountId }
+        val message = when {
+            toAccount?.isLiability == true -> "Debt payment recorded"
+            fromAccount?.type?.isReceivable == true -> "Collection recorded"
+            toAccount?.type?.isReceivable == true -> "Lending recorded"
+            else -> "Transfer recorded"
+        }
         _events.emit(
             UiEvent(
-                message = if (cardPayment) "Card payment recorded" else "Transfer recorded",
+                message = message,
                 actionLabel = "UNDO",
                 followUp = SnackbarFollowUp.UndoCreate(id),
             ),
         )
         id
+    }
+
+    suspend fun recordDebtPayment(
+        debtAccountId: Long,
+        fromAccountId: Long,
+        principalCents: Long,
+        interestCents: Long,
+        note: String,
+        occurredAt: Long = System.currentTimeMillis(),
+    ): Result<Long> = runCatching {
+        val id = repository.addDebtPayment(
+            debtAccountId = debtAccountId,
+            fromAccountId = fromAccountId,
+            principalCents = principalCents,
+            interestCents = interestCents,
+            description = note,
+            occurredAt = occurredAt,
+            lightRow = true,
+        )
+        _events.emit(
+            UiEvent(
+                message = "Debt payment recorded",
+                actionLabel = "UNDO",
+                followUp = SnackbarFollowUp.UndoCreate(id),
+            ),
+        )
+        id
+    }
+
+    suspend fun createDebt(draft: DebtDraft): Result<Long> = runCatching {
+        val id = repository.addDebt(
+            name = draft.name,
+            type = draft.type,
+            amountCents = draft.amountCents,
+            originalPrincipalCents = draft.originalPrincipalCents,
+            scheduleStartBalanceCents = draft.scheduleStartBalanceCents,
+            downPaymentCents = draft.downPaymentCents,
+            annualRateBps = draft.annualRateBps,
+            interestMethod = draft.interestMethod,
+            termMonths = draft.termMonths,
+            firstDueAt = draft.firstDueAt,
+            counterparty = draft.counterparty,
+            origin = draft.origin,
+            fundingAccountId = draft.fundingAccountId,
+            existingAccountId = draft.existingAccountId,
+            categoryId = draft.categoryId,
+            description = draft.note,
+            occurredAt = draft.occurredAt,
+        )
+        _events.emit(
+            UiEvent(
+                message = when {
+                    draft.existingAccountId != null -> "Converted to installment"
+                    draft.type.isReceivable -> "Receivable added"
+                    else -> "Debt added"
+                },
+            ),
+        )
+        id
+    }
+
+    suspend fun updateDebt(account: Account, terms: DebtTerms?): Result<Unit> = runCatching {
+        repository.updateDebt(account, terms)
+        _events.emit(UiEvent("Debt updated"))
     }
 
     suspend fun updateEntry(

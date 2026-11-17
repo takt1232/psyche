@@ -47,6 +47,27 @@ data class LedgerEntryEntity(
     val occurredAt: Long,
     val createdAt: Long,
     val needsAttention: Boolean,
+    @ColumnInfo(defaultValue = "0") val interestCents: Long = 0,
+)
+
+/**
+ * One schedule row per debt account. The outstanding balance is still derived
+ * from the account and ledger; this table only holds the terms used to project
+ * the amortization.
+ */
+@Entity(tableName = "debt_terms")
+data class DebtTermsEntity(
+    @PrimaryKey val accountId: Long,
+    val originalPrincipalCents: Long,
+    val annualRateBps: Int,
+    val interestMethod: String,
+    val termMonths: Int,
+    val firstDueAt: Long,
+    val paymentsPerYear: Int,
+    val scheduleStartBalanceCents: Long,
+    val scheduleStartAt: Long,
+    val counterparty: String?,
+    @ColumnInfo(defaultValue = "0") val downPaymentCents: Long = 0,
 )
 
 @Entity(tableName = "savings_goals")

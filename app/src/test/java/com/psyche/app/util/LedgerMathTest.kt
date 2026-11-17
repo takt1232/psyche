@@ -130,4 +130,70 @@ class LedgerMathTest {
         )
         assertThat(rows.first().netAfterCents).isEqualTo(position.netCents)
     }
+
+    @Test
+    fun `a debt payment reduces cash by the total and principal by the transfer`() {
+        val loan = Account(
+            id = 3,
+            name = "Loan",
+            type = AccountType.LOAN,
+            openingBalanceCents = -50_000,
+            creditLimitCents = 0,
+            lastFour = null,
+            sortOrder = 2,
+            archived = false,
+        )
+        val balances = LedgerMath.accountBalances(
+            accounts = listOf(cash, loan),
+            entries = listOf(
+                entry(
+                    id = 1,
+                    type = TransactionType.TRANSFER,
+                    amountCents = 10_000,
+                    accountId = cash.id,
+                    transferAccountId = loan.id,
+                    occurredAt = at(1, 9),
+                ).copy(interestCents = 1_000),
+            ),
+        ).associateBy { it.account.id }
+
+        assertThat(balances[cash.id]?.balanceCents).isEqualTo(89_000)
+        assertThat(balances[loan.id]?.balanceCents).isEqualTo(-40_000)
+        assertThat(balances[loan.id]?.outstandingCents).isEqualTo(40_000)
+    }
+
+    @Test
+    fun `spending capacity follows the account kind`() {
+        val cardBalance = AccountBalance(card, -20_000)
+        assertThat(cardBalance.availableToSpendCents).isEqualTo(80_000)
+        assertThat(cardBalance.availableToMoveCents).isEqualTo(0)
+
+        val loan = Account(
+            id = 3,
+            name = "Loan",
+            type = AccountType.LOAN,
+            openingBalanceCents = -50_000,
+            creditLimitCents = 0,
+            lastFour = null,
+            sortOrder = 2,
+            archived = false,
+        )
+        val loanBalance = AccountBalance(loan, -50_000)
+        assertThat(loanBalance.availableToSpendCents).isEqualTo(Money.MAX_AMOUNT_CENTS)
+        assertThat(loanBalance.availableToMoveCents).isEqualTo(0)
+
+        val receivable = Account(
+            id = 4,
+            name = "Owed to me",
+            type = AccountType.RECEIVABLE,
+            openingBalanceCents = 20_000,
+            creditLimitCents = 0,
+            lastFour = null,
+            sortOrder = 3,
+            archived = false,
+        )
+        val receivableBalance = AccountBalance(receivable, 20_000)
+        assertThat(receivableBalance.availableToSpendCents).isEqualTo(0)
+        assertThat(receivableBalance.availableToMoveCents).isEqualTo(20_000)
+    }
 }

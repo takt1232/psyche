@@ -7,4 +7,5 @@ enum class MainTab(val label: String, @DrawableRes val icon: Int) {
     HOME("Home", R.drawable.ic_home),
     ACTIVITY("Activity", R.drawable.ic_activity),
     ACCOUNTS("Accounts", R.drawable.ic_accounts),
+    DEBTS("Debts", R.drawable.ic_debts),
 }

@@ -14,9 +14,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LedgerEntryEntity::class,
         GoalEntity::class,
         QuickTransactionEntity::class,
+        DebtTermsEntity::class,
         SettingEntity::class,
     ],
-    version = 4,
+    version = 6,
     exportSchema = false,
 )
 abstract class FinanceDatabase : RoomDatabase() {
@@ -103,13 +104,46 @@ abstract class FinanceDatabase : RoomDatabase() {
             }
         }
 
+        private val migration4To5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `debt_terms` (
+                        `accountId` INTEGER NOT NULL,
+                        `originalPrincipalCents` INTEGER NOT NULL,
+                        `annualRateBps` INTEGER NOT NULL,
+                        `interestMethod` TEXT NOT NULL,
+                        `termMonths` INTEGER NOT NULL,
+                        `firstDueAt` INTEGER NOT NULL,
+                        `paymentsPerYear` INTEGER NOT NULL,
+                        `scheduleStartBalanceCents` INTEGER NOT NULL,
+                        `scheduleStartAt` INTEGER NOT NULL,
+                        `counterparty` TEXT,
+                        PRIMARY KEY(`accountId`)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "ALTER TABLE ledger_entries ADD COLUMN interestCents INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
+        private val migration5To6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE debt_terms ADD COLUMN downPaymentCents INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
         fun build(context: Context): FinanceDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 FinanceDatabase::class.java,
                 "psyche-finance.db",
             )
-                .addMigrations(migration1To2, migration2To3, migration3To4)
+                .addMigrations(migration1To2, migration2To3, migration3To4, migration4To5, migration5To6)
                 .addCallback(feedDefaultAccount)
                 .build()
     }

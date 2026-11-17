@@ -39,9 +39,13 @@ object MonthMath {
         zone: ZoneId = ZoneId.systemDefault(),
     ): MonthSummary {
         val monthEntries = entriesForMonth(entries, month, zone)
-        val spentCents = monthEntries
-            .filter { it.type == TransactionType.EXPENSE }
-            .sumOf { it.amountCents }
+        val spentCents = monthEntries.sumOf { entry ->
+            when (entry.type) {
+                TransactionType.EXPENSE -> entry.amountCents
+                TransactionType.TRANSFER -> entry.interestCents
+                TransactionType.INCOME -> 0L
+            }
+        }
         val incomeCents = monthEntries
             .filter { it.type == TransactionType.INCOME }
             .sumOf { it.amountCents }
